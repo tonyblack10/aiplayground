@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: aiplayground
+  docker:
+    compose:
+      lifecycle-management: start_only
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      chat:
+        options:
+          model: gpt-4o-mini
+
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.vectorstore.pgvector.autoconfigure.PgVectorStoreAutoConfiguration
+  webflux:
+    multipart:
+      max-file-size: 256MB
+      max-request-size: 256MB
+  codec:
+    max-in-memory-size: 256MB
+
+app:
+  github:
+    token: ${GITHUB_TOKEN}
+    clone-dir: /tmp/github-clones
+
+#logging:
+#  level:
+#    org:
+#      springframework: trace

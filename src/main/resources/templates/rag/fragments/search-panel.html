@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="searchPanel" class="space-y-6">
+
+  <!-- Search form -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-100 bg-gray-50">
+      <h3 class="text-base font-semibold text-gray-800">Busca Semântica</h3>
+      <p class="text-sm text-gray-500 mt-0.5">Busque documentos por semelhança de significado usando embeddings</p>
+    </div>
+    <div class="p-6">
+      <form
+          th:hx-get="@{/rag/{s}/search/results(s=${storeId})}"
+          hx-target="#search-results-area"
+          hx-swap="innerHTML"
+          hx-indicator="#search-spinner"
+          class="space-y-4">
+        <div class="flex gap-3">
+          <div class="flex-1 relative">
+            <input type="text" name="query" id="search-input" required
+                   placeholder="Digite sua pergunta ou palavras-chave..."
+                   class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"/>
+            <span id="search-spinner" class="htmx-indicator absolute right-3 top-2.5">
+              <svg class="animate-spin w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+            </span>
+          </div>
+          <button type="submit"
+                  class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap">
+            Buscar
+          </button>
+        </div>
+
+        <!-- Advanced filters (collapsible) -->
+        <details class="group">
+          <summary class="text-xs text-gray-500 cursor-pointer hover:text-gray-700 flex items-center gap-1 select-none">
+            <svg class="w-3.5 h-3.5 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+            Filtros avançados
+          </summary>
+          <div class="mt-3 flex gap-4">
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Número de resultados (topK)</label>
+              <input type="number" name="topK" value="5" min="1" max="20"
+                     class="w-24 px-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+            </div>
+          </div>
+        </details>
+      </form>
+    </div>
+  </div>
+
+  <!-- Results area -->
+  <div id="search-results-area">
+    <div class="text-center text-gray-400 py-10 text-sm">
+      Os resultados aparecerão aqui após a busca.
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

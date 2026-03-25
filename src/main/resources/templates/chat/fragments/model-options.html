@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<th:block th:fragment="modelOptions">
+  <option th:each="m : ${models}"
+          th:value="${m}"
+          th:text="${m}"
+          th:selected="${m == selectedModel}">model</option>
+</th:block>
+
+</body>
+</html>

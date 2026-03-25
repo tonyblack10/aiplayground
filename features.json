@@ -1,0 +1,229 @@
+[
+  {
+    "id": "rag-001",
+    "category": "functional",
+    "module": "rag-management",
+    "description": "VectorStore selection sidebar lists all available Spring AI VectorStore beans",
+    "steps": [
+      "Navigate to /rag",
+      "Verify sidebar renders a list of available vectorstores (simpleVectorStore, pgVectorStore, redisVectorStore)",
+      "Click on a vectorstore entry",
+      "Verify the main content area updates without full page reload",
+      "Verify the selected store is visually highlighted in the sidebar"
+    ],
+    "passes": false
+  },
+  {
+    "id": "rag-002",
+    "category": "functional",
+    "module": "rag-management",
+    "description": "Document list displays all documents ingested in the selected vectorstore",
+    "steps": [
+      "Select a vectorstore from the sidebar",
+      "Navigate to the 'Documentos' tab",
+      "Verify a table renders with columns: ID, filename, estimated size, ingestion date",
+      "Verify documents are loaded via HTMX without full page reload",
+      "Verify pagination controls appear when document count exceeds page size"
+    ],
+    "passes": false
+  },
+  {
+    "id": "rag-003",
+    "category": "functional",
+    "module": "rag-management",
+    "description": "File upload form adds a TXT or MD document to the selected RAG",
+    "steps": [
+      "Select a vectorstore from the sidebar",
+      "Navigate to the 'Adicionar' tab",
+      "Upload a .txt file using the drag-and-drop or file picker",
+      "Verify a progress indicator is shown during processing",
+      "Verify success feedback is displayed after upload completes",
+      "Verify the document appears in the document list tab"
+    ],
+    "passes": false
+  },
+  {
+    "id": "rag-004",
+    "category": "functional",
+    "module": "rag-management",
+    "description": "File upload supports PDF documents with automatic text extraction",
+    "steps": [
+      "Select a vectorstore from the sidebar",
+      "Navigate to the 'Adicionar' tab",
+      "Upload a .pdf file",
+      "Verify the file is accepted and processed",
+      "Verify success feedback is shown with chunk count",
+      "Verify document appears in the document list"
+    ],
+    "passes": false
+  },
+  {
+    "id": "rag-005",
+    "category": "functional",
+    "module": "rag-management",
+    "description": "GitHub repository import ingests documents from a public repository",
+    "steps": [
+      "Select a vectorstore from the sidebar",
+      "Navigate to the 'Adicionar' tab",
+      "Fill in GitHub repository URL (e.g. https://github.com/owner/repo)",
+      "Set branch to 'main' and optionally a subdirectory path",
+      "Set file extension filter (e.g. *.md)",
+      "Click 'Importar'",
+      "Verify progress or loading indicator is shown",
+      "Verify summary feedback shows files processed and chunks created",
+      "Verify documents appear in the document list"
+    ],
+    "passes": false
+  },
+  {
+    "id": "rag-006",
+    "category": "functional",
+    "module": "rag-management",
+    "description": "GitHub import supports optional personal access token for private repositories",
+    "steps": [
+      "Navigate to the GitHub import form",
+      "Expand the 'Configurações Avançadas' section",
+      "Enter a GitHub Personal Access Token",
+      "Enter a private repository URL",
+      "Submit the import form",
+      "Verify documents are imported successfully"
+    ],
+    "passes": false
+  },
+  {
+    "id": "rag-007",
+    "category": "functional",
+    "module": "rag-management",
+    "description": "Single document deletion removes the document from the vectorstore",
+    "steps": [
+      "Select a vectorstore with at least one document",
+      "Navigate to the 'Documentos' tab",
+      "Click the delete icon on a specific document row",
+      "Verify a confirmation prompt or modal appears",
+      "Confirm the deletion",
+      "Verify the document is removed from the list without full page reload",
+      "Verify success feedback is displayed"
+    ],
+    "passes": false
+  },
+  {
+    "id": "rag-008",
+    "category": "functional",
+    "module": "rag-management",
+    "description": "Bulk document deletion removes multiple selected documents from the vectorstore",
+    "steps": [
+      "Select a vectorstore with multiple documents",
+      "Navigate to the 'Documentos' tab",
+      "Select multiple documents using checkboxes",
+      "Verify the 'Remover Selecionados' button becomes active showing count",
+      "Click 'Remover Selecionados'",
+      "Verify confirmation modal shows the count of documents to be deleted",
+      "Confirm the deletion",
+      "Verify all selected documents are removed from the list",
+      "Verify unselected documents remain"
+    ],
+    "passes": false
+  },
+  {
+    "id": "rag-009",
+    "category": "functional",
+    "module": "rag-management",
+    "description": "Select-all checkbox in document table selects or deselects all documents",
+    "steps": [
+      "Navigate to the document list of a vectorstore with multiple documents",
+      "Click the select-all checkbox in the table header",
+      "Verify all document row checkboxes become checked",
+      "Click the select-all checkbox again",
+      "Verify all document row checkboxes become unchecked"
+    ],
+    "passes": false
+  },
+  {
+    "id": "rag-010",
+    "category": "functional",
+    "module": "rag-management",
+    "description": "Keyword search returns relevant documents ranked by similarity score",
+    "steps": [
+      "Select a vectorstore with ingested documents",
+      "Navigate to the 'Buscar' tab",
+      "Type a keyword or phrase in the search field",
+      "Verify results appear automatically after 500ms debounce",
+      "Verify results show document excerpt, similarity score, and metadata",
+      "Verify results are ordered by descending similarity score"
+    ],
+    "passes": false
+  },
+  {
+    "id": "rag-011",
+    "category": "functional",
+    "module": "rag-management",
+    "description": "Advanced search controls allow filtering by topK and similarity threshold",
+    "steps": [
+      "Navigate to the 'Buscar' tab",
+      "Expand the 'Filtros Avançados' section",
+      "Change the 'Número de resultados (topK)' slider to 3",
+      "Change the 'Threshold de Similaridade' to 0.8",
+      "Enter a search query",
+      "Verify results return at most 3 items",
+      "Verify all results have similarity score >= 0.8"
+    ],
+    "passes": false
+  },
+  {
+    "id": "rag-012",
+    "category": "functional",
+    "module": "rag-management",
+    "description": "Advanced search supports metadata key/value filter expressions",
+    "steps": [
+      "Navigate to the 'Buscar' tab",
+      "Expand the 'Filtros Avançados' section",
+      "Add a metadata filter with key 'filename' and value 'faq.txt'",
+      "Enter a search query",
+      "Verify results only contain documents with matching metadata"
+    ],
+    "passes": false
+  },
+  {
+    "id": "rag-013",
+    "category": "non-functional",
+    "module": "rag-management",
+    "description": "All RAG management interactions use HTMX and do not cause full page reloads",
+    "steps": [
+      "Open browser devtools Network tab",
+      "Perform vectorstore selection",
+      "Perform document upload",
+      "Perform document deletion",
+      "Perform a search query",
+      "Verify no full HTML document (200 with full <html>) responses in network tab for these actions",
+      "Verify only HTML fragment responses are returned by HTMX endpoints"
+    ],
+    "passes": false
+  },
+  {
+    "id": "rag-014",
+    "category": "non-functional",
+    "module": "rag-management",
+    "description": "Upload form validates file type and displays error for unsupported formats",
+    "steps": [
+      "Navigate to the 'Adicionar' tab",
+      "Attempt to upload a .exe or .zip file",
+      "Verify an inline error message is displayed",
+      "Verify the file is not processed or added to the vectorstore"
+    ],
+    "passes": false
+  },
+  {
+    "id": "rag-015",
+    "category": "non-functional",
+    "module": "rag-management",
+    "description": "GitHub import form validates URL format before submission",
+    "steps": [
+      "Navigate to the GitHub import form",
+      "Enter an invalid URL (e.g. 'not-a-url')",
+      "Click 'Importar'",
+      "Verify inline validation error is displayed",
+      "Verify no network request is made to the backend import endpoint"
+    ],
+    "passes": false
+  }
+]

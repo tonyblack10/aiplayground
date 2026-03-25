@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="feedback" class="flex flex-col items-center justify-center py-12">
+
+  <div th:if="${errorMessage}"
+       class="w-full max-w-lg bg-red-50 border border-red-200 text-red-800 px-5 py-4 rounded-xl text-sm flex items-start gap-3">
+    <svg class="w-5 h-5 flex-shrink-0 text-red-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    <div>
+      <p class="font-semibold mb-0.5">Erro</p>
+      <p th:text="${errorMessage}">Mensagem de erro</p>
+    </div>
+  </div>
+
+  <div th:if="${successMessage}"
+       class="w-full max-w-lg bg-green-50 border border-green-200 text-green-800 px-5 py-4 rounded-xl text-sm flex items-start gap-3">
+    <svg class="w-5 h-5 flex-shrink-0 text-green-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414L8.414 15l-4.121-4.121a1 1 0 011.414-1.414L8.414 12.172l6.879-6.879a1 1 0 011.414 0z" clip-rule="evenodd"/>
+    </svg>
+    <div>
+      <p class="font-semibold mb-0.5">Sucesso</p>
+      <p th:text="${successMessage}">Operação concluída.</p>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

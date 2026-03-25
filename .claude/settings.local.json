@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//mnt/c/Users/tonyb/Documents/projects/labs/ia/**)",
+      "Bash(./mvnw compile:*)",
+      "Bash(jar tf:*)",
+      "Bash(./mvnw.cmd compile:*)",
+      "Bash(grep -v \"$\")",
+      "Bash(javap -p ~/.m2/repository/org/springframework/ai/spring-ai-advisors-vector-store/1.1.3/spring-ai-advisors-vector-store-1.1.3.jar!/org/springframework/ai/chat/client/advisor/vectorstore/QuestionAnswerAdvisor.class)",
+      "Read(//c/tmp/**)",
+      "Bash(jar xf:*)",
+      "Bash(javap -p org/springframework/ai/chat/client/advisor/vectorstore/QuestionAnswerAdvisor.class)",
+      "Bash(find ~/.m2/repository/org/springframework/ai/spring-ai-core/1.1.3 -name *.jar)",
+      "Bash(find ~/.m2/repository/org/springframework/ai -name *.jar)",
+      "Bash(xargs -I{} jar tf {})",
+      "Bash(\"C:/Users/tonyb/Documents/projects/labs/ia/aiplayground/src/main/java/io/tonyblack10/aiplayground/chat/dto/SendMessageDTO.java\":*)"
+    ]
+  }
+}

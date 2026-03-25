@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="documentList">
+
+  <!-- Feedback toast (shown after operations) -->
+  <div th:if="${successMessage}"
+       class="mb-4 flex items-center gap-2 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg text-sm">
+    <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414L8.414 15l-4.121-4.121a1 1 0 011.414-1.414L8.414 12.172l6.879-6.879a1 1 0 011.414 0z" clip-rule="evenodd"/>
+    </svg>
+    <span th:text="${successMessage}">Operação realizada com sucesso.</span>
+  </div>
+
+  <!-- Header row -->
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h3 class="text-base font-semibold text-gray-800">Documentos</h3>
+      <p class="text-sm text-gray-500" th:text="${documents.size()} + ' documento(s) na store'">0 documentos</p>
+    </div>
+    <button
+        class="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm rounded-lg transition-colors"
+        th:data-store="${storeId}"
+        onclick="deleteSelected(this)">
+      Remover Selecionados
+    </button>
+  </div>
+
+  <!-- Empty state -->
+  <div th:if="${documents.isEmpty()}" class="text-center py-16 text-gray-400">
+    <svg class="mx-auto mb-3 w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+    </svg>
+    <p class="text-sm">Nenhum documento encontrado.<br/>Use a aba "Adicionar" para ingerir documentos.</p>
+  </div>
+
+  <!-- Document table -->
+  <div th:if="${!documents.isEmpty()}" class="overflow-x-auto">
+    <form th:id="'form-' + ${storeId}">
+      <table class="w-full text-sm bg-white rounded-xl shadow-sm overflow-hidden">
+        <thead class="bg-gray-50 border-b border-gray-200">
+          <tr>
+            <th class="px-4 py-3 text-left">
+              <input type="checkbox" id="select-all-cb" onchange="selectAll(this)"
+                     class="rounded border-gray-300 text-blue-600"/>
+            </th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fonte</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Preview</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Ingerido em</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Ações</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          <tr th:each="doc : ${documents}" class="hover:bg-gray-50 transition-colors">
+            <td class="px-4 py-3">
+              <input type="checkbox" name="doc-id" th:value="${doc.id}"
+                     class="rounded border-gray-300 text-blue-600"/>
+            </td>
+            <td class="px-4 py-3">
+              <span class="font-medium text-gray-800" th:text="${doc.source}">filename.txt</span>
+              <br/>
+              <span class="text-xs text-gray-400 font-mono" th:text="${#strings.abbreviate(doc.id, 16)}">id...</span>
+            </td>
+            <td class="px-4 py-3 max-w-xs">
+              <span class="text-gray-600 text-xs" th:text="${#strings.abbreviate(doc.contentPreview, 120)}">preview...</span>
+            </td>
+            <td class="px-4 py-3 text-gray-500 whitespace-nowrap"
+                th:text="${#temporals.format(doc.ingestedAt, 'dd/MM/yyyy HH:mm')}">--</td>
+            <td class="px-4 py-3">
+              <button type="button"
+                      class="text-red-500 hover:text-red-700 text-xs font-medium"
+                      th:data-id="${doc.id}"
+                      th:data-store="${storeId}"
+                      onclick="deleteSingle(this)">
+                Remover
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </form>
+  </div>
+
+  <script>
+    function selectAll(cb) {
+      document.querySelectorAll('[name="doc-id"]').forEach(item => item.checked = cb.checked);
+    }
+
+    function deleteSingle(btn) {
+      if (!confirm('Remover este documento?')) return;
+      const storeId = btn.dataset.store;
+      const id = btn.dataset.id;
+      sendDelete(storeId, [id]);
+    }
+
+    function deleteSelected(btn) {
+      const storeId = btn.dataset.store;
+      const ids = [...document.querySelectorAll('[name="doc-id"]:checked')].map(cb => cb.value);
+      if (ids.length === 0) { alert('Selecione ao menos um documento.'); return; }
+      if (!confirm(`Remover ${ids.length} documento(s)?`)) return;
+      sendDelete(storeId, ids);
+    }
+
+    function sendDelete(storeId, ids) {
+      const params = new URLSearchParams();
+      ids.forEach(id => params.append('ids', id));
+      fetch(`/rag/${storeId}/documents/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+      })
+      .then(res => res.text())
+      .then(html => {
+        const target = document.getElementById('tab-content');
+        target.innerHTML = html;
+        htmx.process(target);
+      })
+      .catch(err => console.error('Delete failed:', err));
+    }
+  </script>
+
+</div>
+
+</body>
+</html>
