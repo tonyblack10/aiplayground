@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
 
-<div th:fragment="storeView" class="h-full flex flex-col">
+<div th:fragment="storeView" class="h-full w-full flex flex-col">
 
   <!-- Header -->
   <div class="bg-white border-b border-gray-200 px-6 py-4">
@@ -40,7 +40,7 @@
   </div>
 
   <!-- Tab content area -->
-  <div id="tab-content" class="flex-1 overflow-auto p-6">
+  <div id="tab-content" class="flex-1 overflow-auto px-6 py-4">
     <div th:replace="~{rag/fragments/document-list :: documentList}"></div>
   </div>
 

@@ -63,8 +63,8 @@
               <br/>
               <span class="text-xs text-gray-400 font-mono" th:text="${#strings.abbreviate(doc.id, 16)}">id...</span>
             </td>
-            <td class="px-4 py-3 max-w-xs">
-              <span class="text-gray-600 text-xs" th:text="${#strings.abbreviate(doc.contentPreview, 120)}">preview...</span>
+            <td class="px-4 py-3">
+              <span class="text-gray-600 text-xs" th:text="${#strings.abbreviate(doc.contentPreview, 300)}">preview...</span>
             </td>
             <td class="px-4 py-3 text-gray-500 whitespace-nowrap"
                 th:text="${#temporals.format(doc.ingestedAt, 'dd/MM/yyyy HH:mm')}">--</td>
