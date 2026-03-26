@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="uploadResults" class="space-y-4">
+  <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+      <div>
+        <h3 class="text-base font-semibold text-gray-800">Resultado do Upload</h3>
+        <p class="text-sm text-gray-500 mt-0.5"
+           th:text="${#lists.size(uploadResults)} + ' arquivo(s) processado(s)'"></p>
+      </div>
+      <button
+          th:hx-get="@{/rag/{s}/documents(s=${storeId})}"
+          hx-target="#tab-content"
+          hx-swap="innerHTML"
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+        Ver Documentos
+      </button>
+    </div>
+    <div class="divide-y divide-gray-50">
+      <div th:each="result : ${uploadResults}"
+           class="px-6 py-3.5 flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3 min-w-0">
+          <svg th:if="${result.success()}" class="w-5 h-5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <svg th:unless="${result.success()}" class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <div class="min-w-0">
+            <p class="text-sm font-medium text-gray-800 truncate" th:text="${result.filename()}"></p>
+            <p th:if="${result.success()}" class="text-xs text-gray-500"
+               th:text="${result.chunksIngested()} + ' chunk(s) ingerido(s)'"></p>
+            <p th:unless="${result.success()}" class="text-xs text-red-500 truncate"
+               th:text="${result.errorMessage()}"></p>
+          </div>
+        </div>
+        <span th:if="${result.success()}"
+              class="flex-shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+          Sucesso
+        </span>
+        <span th:unless="${result.success()}"
+              class="flex-shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+          Erro
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

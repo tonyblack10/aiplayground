@@ -24,11 +24,12 @@
   <div id="add-panel-upload">
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div class="px-6 py-4 border-b border-gray-100 bg-gray-50">
-        <h3 class="text-base font-semibold text-gray-800">Upload de Arquivo</h3>
-        <p class="text-sm text-gray-500 mt-0.5">Formatos aceitos: .txt, .md, .pdf</p>
+        <h3 class="text-base font-semibold text-gray-800">Upload de Arquivos</h3>
+        <p class="text-sm text-gray-500 mt-0.5">Formatos aceitos: PDF, HTML, MD, DOC/DOCX, XLS/XLSX, PPT/PPTX, XML &middot; Tamanho máximo total: 12MB</p>
       </div>
       <div class="p-6">
         <form
+            id="upload-form"
             th:hx-post="@{/rag/{s}/documents/upload(s=${storeId})}"
             hx-encoding="multipart/form-data"
             hx-target="#tab-content"
@@ -42,27 +43,39 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                     d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
             </svg>
-            <p class="text-sm text-gray-500 mb-2">Arraste um arquivo ou clique para selecionar</p>
-            <input type="file" name="file" id="file-input" accept=".txt,.md,.pdf,.markdown"
-                   class="hidden" onchange="updateFileName(this)"/>
+            <p class="text-sm text-gray-500 mb-2">Arraste arquivos ou clique para selecionar</p>
+            <input type="file" name="files" id="file-input" multiple
+                   accept=".pdf,.html,.htm,.md,.markdown,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.xml"
+                   class="hidden" onchange="updateFileList(this)"/>
             <button type="button" onclick="document.getElementById('file-input').click()"
                     class="text-sm text-blue-600 hover:text-blue-700 font-medium">
-              Escolher arquivo
+              Escolher arquivos
             </button>
-            <p id="file-name" class="text-xs text-gray-400 mt-2"></p>
+          </div>
+
+          <!-- Selected file list -->
+          <div id="file-list" class="mt-4 hidden">
+            <ul id="file-list-items" class="space-y-1.5"></ul>
+            <div id="size-warning" class="hidden mt-2 flex items-center gap-1.5 text-xs text-red-600 font-medium">
+              <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+              </svg>
+              O tamanho total excede o limite de 12MB. Remova alguns arquivos.
+            </div>
+            <p id="total-size" class="mt-2 text-xs text-gray-400"></p>
           </div>
 
           <div class="mt-4 flex items-center gap-3">
-            <button type="submit"
-                    class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
-              Ingerir Documento
+            <button type="submit" id="submit-btn"
+                    class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+              Ingerir Documentos
             </button>
             <span id="upload-spinner" class="htmx-indicator text-sm text-gray-500 flex items-center gap-1.5">
               <svg class="animate-spin w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
               </svg>
-              Processando...
+              Processando arquivos...
             </span>
           </div>
         </form>
@@ -124,6 +137,8 @@
 
 
   <script>
+    const MAX_TOTAL_SIZE = 12 * 1024 * 1024;
+
     function switchAddTab(activeTabId, activePanelId) {
       ['add-tab-upload', 'add-tab-github'].forEach(id => {
         document.getElementById(id).classList.toggle('tab-active', id === activeTabId);
@@ -133,9 +148,49 @@
       });
     }
 
-    function updateFileName(input) {
-      const nameEl = document.getElementById('file-name');
-      nameEl.textContent = input.files[0] ? input.files[0].name : '';
+    function updateFileList(input) {
+      const fileListEl = document.getElementById('file-list');
+      const fileListItems = document.getElementById('file-list-items');
+      const sizeWarning = document.getElementById('size-warning');
+      const totalSizeEl = document.getElementById('total-size');
+      const submitBtn = document.getElementById('submit-btn');
+
+      if (!input.files || input.files.length === 0) {
+        fileListEl.classList.add('hidden');
+        return;
+      }
+
+      fileListEl.classList.remove('hidden');
+      fileListItems.innerHTML = '';
+
+      let totalSize = 0;
+      Array.from(input.files).forEach(file => {
+        totalSize += file.size;
+        const li = document.createElement('li');
+        li.className = 'flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg';
+        li.dataset.filename = file.name;
+        li.innerHTML = `
+          <span class="flex items-center gap-2 text-gray-700 min-w-0">
+            <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            <span class="truncate text-sm">${file.name}</span>
+          </span>
+          <span class="text-xs text-gray-400 ml-3 flex-shrink-0">${formatFileSize(file.size)}</span>
+        `;
+        fileListItems.appendChild(li);
+      });
+
+      const overLimit = totalSize > MAX_TOTAL_SIZE;
+      sizeWarning.classList.toggle('hidden', !overLimit);
+      submitBtn.disabled = overLimit;
+      totalSizeEl.textContent = `Total: ${formatFileSize(totalSize)} / 12MB`;
+    }
+
+    function formatFileSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
     }
 
     function handleDrop(event) {
@@ -144,10 +199,26 @@
       const dt = event.dataTransfer;
       if (dt.files.length > 0) {
         input.files = dt.files;
-        updateFileName(input);
+        updateFileList(input);
         document.getElementById('drop-zone').classList.add('border-blue-400', 'bg-blue-50');
       }
     }
+
+    document.addEventListener('htmx:beforeRequest', function(evt) {
+      if (evt.target.id !== 'upload-form') return;
+      document.querySelectorAll('#file-list-items li').forEach(li => {
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'ml-2 flex items-center gap-1 text-xs text-blue-600 flex-shrink-0';
+        statusSpan.innerHTML = `
+          <svg class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+          </svg>
+          Processando...
+        `;
+        li.appendChild(statusSpan);
+      });
+    });
   </script>
 
 </div>

@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
@@ -74,20 +75,21 @@ public class RagManagementController {
   }
 
   @PostMapping(value = "/{storeId}/documents/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-  public Mono<String> uploadFile(
+  public Mono<String> uploadFiles(
       @PathVariable String storeId,
-      @RequestPart("file") FilePart filePart,
+      @RequestPart("files") Flux<FilePart> files,
       Model model) {
-    return managementService.uploadFile(storeId, filePart)
-        .doOnNext(docs -> {
+    return files.collectList()
+        .flatMap(fileList -> managementService.uploadFiles(storeId, fileList))
+        .doOnNext(results -> {
           model.addAttribute("storeId", storeId);
-          model.addAttribute("documents", docs);
-          model.addAttribute("successMessage", "File '" + filePart.filename() + "' ingested successfully.");
+          model.addAttribute("uploadResults", results);
         })
-        .thenReturn("rag/fragments/document-list :: documentList")
+        .thenReturn("rag/fragments/upload-results :: uploadResults")
         .onErrorResume(e -> {
+          log.error("Upload failed for store {}", storeId, e);
           model.addAttribute("storeId", storeId);
-          model.addAttribute("errorMessage", "Upload failed: " + e.getMessage());
+          model.addAttribute("errorMessage", "Upload falhou: " + e.getMessage());
           return Mono.just("rag/fragments/feedback :: feedback");
         });
   }

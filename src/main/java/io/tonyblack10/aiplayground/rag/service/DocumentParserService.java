@@ -6,6 +6,7 @@ import org.springframework.ai.reader.TextReader;
 import org.springframework.ai.reader.markdown.MarkdownDocumentReader;
 import org.springframework.ai.reader.markdown.config.MarkdownDocumentReaderConfig;
 import org.springframework.ai.reader.pdf.PagePdfDocumentReader;
+import org.springframework.ai.reader.tika.TikaDocumentReader;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.buffer.DataBufferUtils;
@@ -32,6 +33,11 @@ public class DocumentParserService {
 
   public Mono<List<Document>> parse(byte[] bytes, String filename) {
     return Mono.fromCallable(() -> parseBytes(bytes, filename))
+        .subscribeOn(Schedulers.boundedElastic());
+  }
+
+  public Mono<List<Document>> parseTika(byte[] bytes, String filename) {
+    return Mono.fromCallable(() -> parseTikaBytes(bytes, filename))
         .subscribeOn(Schedulers.boundedElastic());
   }
 
@@ -62,6 +68,13 @@ public class DocumentParserService {
     TextReader reader = new TextReader(resource);
     reader.getCustomMetadata().put("filename", filename);
     return reader.get();
+  }
+
+  private List<Document> parseTikaBytes(byte[] bytes, String filename) {
+    ByteArrayResource resource = namedResource(bytes, filename);
+    List<Document> docs = new TikaDocumentReader(resource).get();
+    docs.forEach(doc -> doc.getMetadata().put("source", filename));
+    return SPLITTER.apply(docs);
   }
 
   private ByteArrayResource namedResource(byte[] bytes, String filename) {
