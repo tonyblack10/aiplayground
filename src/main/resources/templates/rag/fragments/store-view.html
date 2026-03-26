@@ -18,16 +18,8 @@
   </style>
   <div class="bg-white border-b border-gray-200 px-6">
     <nav class="flex space-x-0" id="tab-nav">
-      <button id="tab-documents"
-              class="tab-btn tab-active px-4 py-3 text-sm font-medium -mb-px"
-              th:hx-get="@{/rag/{s}/documents(s=${storeId})}"
-              hx-target="#tab-content"
-              hx-swap="innerHTML"
-              onclick="activateTab('tab-documents')">
-        Documentos
-      </button>
       <button id="tab-add"
-              class="tab-btn px-4 py-3 text-sm font-medium -mb-px"
+              class="tab-btn tab-active px-4 py-3 text-sm font-medium -mb-px"
               th:hx-get="@{/rag/{s}/add(s=${storeId})}"
               hx-target="#tab-content"
               hx-swap="innerHTML"
@@ -45,12 +37,12 @@
     </nav>
   </div>
 
-  <!-- Tab content area: loads Documentos tab automatically on store selection -->
+  <!-- Tab content area: loads Adicionar tab automatically on store selection -->
   <div id="tab-content" class="flex-1 overflow-auto px-6 py-4"
-       th:hx-get="@{/rag/{s}/documents(s=${storeId})}"
+       th:hx-get="@{/rag/{s}/add(s=${storeId})}"
        hx-trigger="load"
        hx-swap="innerHTML">
-    <div class="text-center py-8 text-gray-400 text-sm">Carregando documentos...</div>
+    <div class="text-center py-8 text-gray-400 text-sm">Carregando...</div>
   </div>
 
   <script>
