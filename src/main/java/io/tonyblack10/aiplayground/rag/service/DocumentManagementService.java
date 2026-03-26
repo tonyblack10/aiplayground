@@ -66,14 +66,19 @@ public class DocumentManagementService {
     }).subscribeOn(Schedulers.boundedElastic());
   }
 
-  public Mono<List<Document>> semanticSearch(String storeId, String query, int topK) {
+  public Mono<List<Document>> semanticSearch(
+      String storeId, String query, int topK, double similarityThreshold, String filterExpression) {
     return Mono.fromCallable(() -> {
       VectorStore store = vectorStoreRegistry.getStore(storeId);
-      SearchRequest request = SearchRequest.builder()
+      SearchRequest.Builder builder = SearchRequest.builder()
           .query(query)
           .topK(topK)
-          .build();
-      return store.similaritySearch(request);
+          .similarityThreshold(similarityThreshold);
+
+      if (filterExpression != null && !filterExpression.isBlank()) {
+        builder.filterExpression(filterExpression);
+      }
+      return store.similaritySearch(builder.build());
     }).subscribeOn(Schedulers.boundedElastic());
   }
 }

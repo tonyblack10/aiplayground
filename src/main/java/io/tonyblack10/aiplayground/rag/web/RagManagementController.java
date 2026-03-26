@@ -137,8 +137,10 @@ public class RagManagementController {
       @PathVariable String storeId,
       @RequestParam String query,
       @RequestParam(defaultValue = "5") int topK,
+      @RequestParam(defaultValue = "0.0") double similarityThreshold,
+      @RequestParam(defaultValue = "") String filterExpression,
       Model model) {
-    return managementService.semanticSearch(storeId, query, topK)
+    return managementService.semanticSearch(storeId, query, topK, similarityThreshold, filterExpression)
         .doOnNext(results -> {
           model.addAttribute("storeId", storeId);
           model.addAttribute("searchResults", results);
