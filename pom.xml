@@ -60,6 +60,12 @@
 			<artifactId>spring-ai-starter-vector-store-redis</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>org.eclipse.jgit</groupId>
+			<artifactId>org.eclipse.jgit</artifactId>
+			<version>7.1.0.202411261347-r</version>
+		</dependency>
+
 		<!-- start document reader -->
 		<dependency>
 			<groupId>org.springframework.ai</groupId>

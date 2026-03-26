@@ -21,13 +21,13 @@ public class DocumentManagementService {
   private final VectorStoreRegistry vectorStoreRegistry;
   private final DocumentRegistry documentRegistry;
   private final DocumentParserService parserService;
-  private final GitHubImportService gitHubImportService;
+  private final GitHubImporter gitHubImportService;
 
   public DocumentManagementService(
       VectorStoreRegistry vectorStoreRegistry,
       DocumentRegistry documentRegistry,
       DocumentParserService parserService,
-      GitHubImportService gitHubImportService) {
+      GitHubImporter gitHubImportService) {
     this.vectorStoreRegistry = vectorStoreRegistry;
     this.documentRegistry = documentRegistry;
     this.parserService = parserService;

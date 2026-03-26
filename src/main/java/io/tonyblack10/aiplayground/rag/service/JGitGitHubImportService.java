@@ -9,24 +9,28 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
+import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+@Primary
 @Service
-public class GitHubImportService implements GitHubImporter {
+public class JGitGitHubImportService implements GitHubImporter {
 
-  private static final Logger log = LoggerFactory.getLogger(GitHubImportService.class);
+  private static final Logger log = LoggerFactory.getLogger(JGitGitHubImportService.class);
 
   private final String githubToken;
   private final Path cloneBaseDir;
   private final DocumentParserService parserService;
 
-  public GitHubImportService(
+  public JGitGitHubImportService(
       @Value("${app.github.token}") String githubToken,
       @Value("${app.github.clone-dir}") String cloneDir,
       DocumentParserService parserService) {
@@ -35,6 +39,7 @@ public class GitHubImportService implements GitHubImporter {
     this.parserService = parserService;
   }
 
+  @Override
   public Mono<List<Document>> importFromGitHub(String repoUrl, String branch) {
     return Mono.fromCallable(() -> cloneAndParse(repoUrl, branch))
         .subscribeOn(Schedulers.boundedElastic())
@@ -56,24 +61,15 @@ public class GitHubImportService implements GitHubImporter {
   private void cloneRepository(String repoUrl, String branch, Path targetDir) throws Exception {
     Files.createDirectories(targetDir.getParent());
 
-    String authenticatedUrl = repoUrl.replaceFirst(
-        "https://github.com/", "https://" + githubToken + "@github.com/");
-
-    List<String> command = List.of(
-        "git", "clone", "--depth", "1", "--branch", branch, authenticatedUrl, targetDir.toString()
-    );
-
-    ProcessBuilder pb = new ProcessBuilder(command);
-    pb.redirectErrorStream(true);
-
-    Process process = pb.start();
-    String output = new String(process.getInputStream().readAllBytes());
-    int exitCode = process.waitFor();
-
-    if (exitCode != 0) {
-      throw new RuntimeException("git clone failed (exit " + exitCode + "): " + output);
+    try (Git git = Git.cloneRepository()
+        .setURI(repoUrl)
+        .setDirectory(targetDir.toFile())
+        .setBranch("refs/heads/" + branch)
+        .setDepth(1)
+        .setCredentialsProvider(new UsernamePasswordCredentialsProvider(githubToken, ""))
+        .call()) {
+      log.info("Cloned {} (branch: {}) to {} via JGit", repoUrl, branch, targetDir);
     }
-    log.info("Cloned {} (branch: {}) to {}", repoUrl, branch, targetDir);
   }
 
   private List<List<Document>> collectMarkdownFiles(Path cloneDir) throws IOException {
