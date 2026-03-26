@@ -46,7 +46,7 @@
             <p class="text-sm text-gray-500 mb-2">Arraste arquivos ou clique para selecionar</p>
             <input type="file" name="files" id="file-input" multiple
                    accept=".pdf,.html,.htm,.md,.markdown,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.xml"
-                   class="hidden" onchange="updateFileList(this)"/>
+                   class="hidden" onchange="mergeFiles(this.files)"/>
             <button type="button" onclick="document.getElementById('file-input').click()"
                     class="text-sm text-blue-600 hover:text-blue-700 font-medium">
               Escolher arquivos
@@ -138,6 +138,7 @@
 
   <script>
     const MAX_TOTAL_SIZE = 12 * 1024 * 1024;
+    let fileTransfer = new DataTransfer();
 
     function switchAddTab(activeTabId, activePanelId) {
       ['add-tab-upload', 'add-tab-github'].forEach(id => {
@@ -146,6 +147,18 @@
       ['add-panel-upload', 'add-panel-github'].forEach(id => {
         document.getElementById(id).classList.toggle('hidden', id !== activePanelId);
       });
+    }
+
+    function mergeFiles(newFiles) {
+      const existing = new Set(Array.from(fileTransfer.files).map(f => f.name + f.size));
+      Array.from(newFiles).forEach(file => {
+        if (!existing.has(file.name + file.size)) {
+          fileTransfer.items.add(file);
+        }
+      });
+      const input = document.getElementById('file-input');
+      input.files = fileTransfer.files;
+      updateFileList(input);
     }
 
     function updateFileList(input) {
@@ -195,11 +208,9 @@
 
     function handleDrop(event) {
       event.preventDefault();
-      const input = document.getElementById('file-input');
       const dt = event.dataTransfer;
       if (dt.files.length > 0) {
-        input.files = dt.files;
-        updateFileList(input);
+        mergeFiles(dt.files);
         document.getElementById('drop-zone').classList.add('border-blue-400', 'bg-blue-50');
       }
     }
