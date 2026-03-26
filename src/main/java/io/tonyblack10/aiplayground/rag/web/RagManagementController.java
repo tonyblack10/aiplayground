@@ -101,17 +101,13 @@ public class RagManagementController {
       @RequestParam(defaultValue = "main") String branch,
       Model model) {
     return managementService.importFromGitHub(storeId, repoUrl, branch)
-        .doOnNext(docs -> {
-          model.addAttribute("storeId", storeId);
-          model.addAttribute("documents", docs);
-          model.addAttribute("successMessage", "GitHub import completed. " + docs.size() + " document(s) in store.");
-        })
-        .thenReturn("rag/fragments/document-list :: documentList")
+        .doOnNext(docs -> model.addAttribute("successMessage",
+            "Importação concluída. " + docs.size() + " documento(s) adicionado(s) à store."))
+        .thenReturn("rag/fragments/github-import-result :: githubImportFeedback")
         .onErrorResume(e -> {
           log.error("GitHub import failed for repo {} (branch: {})", repoUrl, branch, e);
-          model.addAttribute("storeId", storeId);
-          model.addAttribute("errorMessage", "GitHub import failed: " + e.getMessage());
-          return Mono.just("rag/fragments/feedback :: feedback");
+          model.addAttribute("errorMessage", "Importação falhou: " + e.getMessage());
+          return Mono.just("rag/fragments/github-import-result :: githubImportFeedback");
         });
   }
 
