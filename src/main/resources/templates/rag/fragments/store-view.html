@@ -45,9 +45,12 @@
     </nav>
   </div>
 
-  <!-- Tab content area -->
-  <div id="tab-content" class="flex-1 overflow-auto px-6 py-4">
-    <div th:replace="~{rag/fragments/document-list :: documentList}"></div>
+  <!-- Tab content area: loads Documentos tab automatically on store selection -->
+  <div id="tab-content" class="flex-1 overflow-auto px-6 py-4"
+       th:hx-get="@{/rag/{s}/documents(s=${storeId})}"
+       hx-trigger="load"
+       hx-swap="innerHTML">
+    <div class="text-center py-8 text-gray-400 text-sm">Carregando documentos...</div>
   </div>
 
   <script>
