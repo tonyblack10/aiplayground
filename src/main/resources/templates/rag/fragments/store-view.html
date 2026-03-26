@@ -10,10 +10,16 @@
   </div>
 
   <!-- Tab navigation -->
+  <style>
+    .tab-btn { border-bottom: 2px solid transparent; color: #6b7280; }
+    .tab-btn:hover { color: #374151; border-bottom-color: #d1d5db; }
+    .tab-btn.tab-active { border-bottom-color: #3b82f6; color: #2563eb; }
+    .tab-btn.tab-active:hover { border-bottom-color: #3b82f6; color: #2563eb; }
+  </style>
   <div class="bg-white border-b border-gray-200 px-6">
     <nav class="flex space-x-0" id="tab-nav">
       <button id="tab-documents"
-              class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-blue-500 text-blue-600 -mb-px"
+              class="tab-btn tab-active px-4 py-3 text-sm font-medium -mb-px"
               th:hx-get="@{/rag/{s}/documents(s=${storeId})}"
               hx-target="#tab-content"
               hx-swap="innerHTML"
@@ -21,7 +27,7 @@
         Documentos
       </button>
       <button id="tab-add"
-              class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 -mb-px"
+              class="tab-btn px-4 py-3 text-sm font-medium -mb-px"
               th:hx-get="@{/rag/{s}/add(s=${storeId})}"
               hx-target="#tab-content"
               hx-swap="innerHTML"
@@ -29,7 +35,7 @@
         Adicionar
       </button>
       <button id="tab-search"
-              class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 -mb-px"
+              class="tab-btn px-4 py-3 text-sm font-medium -mb-px"
               th:hx-get="@{/rag/{s}/search(s=${storeId})}"
               hx-target="#tab-content"
               hx-swap="innerHTML"
@@ -44,21 +50,15 @@
     <div th:replace="~{rag/fragments/document-list :: documentList}"></div>
   </div>
 
-</div>
+  <script>
+    function activateTab(activeId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('tab-active', btn.id === activeId);
+      });
+    }
+  </script>
 
-<script>
-  function activateTab(activeId) {
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-      if (btn.id === activeId) {
-        btn.classList.add('border-blue-500', 'text-blue-600');
-        btn.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
-      } else {
-        btn.classList.remove('border-blue-500', 'text-blue-600');
-        btn.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
-      }
-    });
-  }
-</script>
+</div>
 
 </body>
 </html>
