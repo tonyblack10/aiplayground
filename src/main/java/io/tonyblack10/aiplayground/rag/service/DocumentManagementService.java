@@ -1,5 +1,6 @@
 package io.tonyblack10.aiplayground.rag.service;
 
+import io.tonyblack10.aiplayground.rag.model.ConfluenceImportResult;
 import io.tonyblack10.aiplayground.rag.model.DocumentEntry;
 import io.tonyblack10.aiplayground.rag.model.FileUploadResult;
 import io.tonyblack10.aiplayground.rag.registry.DocumentRegistry;
@@ -22,16 +23,19 @@ public class DocumentManagementService {
   private final DocumentRegistry documentRegistry;
   private final DocumentParserService parserService;
   private final GitHubImporter gitHubImportService;
+  private final ConfluenceImportService confluenceImportService;
 
   public DocumentManagementService(
       VectorStoreRegistry vectorStoreRegistry,
       DocumentRegistry documentRegistry,
       DocumentParserService parserService,
-      GitHubImporter gitHubImportService) {
+      GitHubImporter gitHubImportService,
+      ConfluenceImportService confluenceImportService) {
     this.vectorStoreRegistry = vectorStoreRegistry;
     this.documentRegistry = documentRegistry;
     this.parserService = parserService;
     this.gitHubImportService = gitHubImportService;
+    this.confluenceImportService = confluenceImportService;
   }
 
   public Mono<List<DocumentEntry>> listDocuments(String storeId) {
@@ -93,6 +97,23 @@ public class DocumentManagementService {
             documentRegistry.register(storeId, docs);
           }
           return documentRegistry.getDocuments(storeId);
+        }).subscribeOn(Schedulers.boundedElastic()));
+  }
+
+  public Mono<ConfluenceImportResult> importFromConfluence(String storeId, String spaceKey) {
+    return confluenceImportService.importFromSpace(spaceKey)
+        .flatMap(result -> Mono.fromCallable(() -> {
+          if (!result.documents().isEmpty()) {
+            VectorStore store = vectorStoreRegistry.getStore(storeId);
+            store.add(result.documents());
+            documentRegistry.register(storeId, result.documents());
+          }
+          return new ConfluenceImportResult(
+              result.pagesProcessed(),
+              result.pagesIngested(),
+              result.chunksIngested(),
+              result.errors(),
+              List.of());
         }).subscribeOn(Schedulers.boundedElastic()));
   }
 

@@ -111,6 +111,21 @@ public class RagManagementController {
         });
   }
 
+  @PostMapping("/{storeId}/documents/confluence")
+  public Mono<String> importFromConfluence(
+      @PathVariable String storeId,
+      @RequestParam(defaultValue = "~5570589115414629b149a9a6cc9c310018c84e") String spaceKey,
+      Model model) {
+    return managementService.importFromConfluence(storeId, spaceKey.strip().toUpperCase())
+        .doOnNext(result -> model.addAttribute("confluenceResult", result))
+        .thenReturn("rag/fragments/confluence-import-result :: confluenceImportFeedback")
+        .onErrorResume(e -> {
+          log.error("Confluence import failed for space {}", spaceKey, e);
+          model.addAttribute("errorMessage", "Importação falhou: " + e.getMessage());
+          return Mono.just("rag/fragments/confluence-import-result :: confluenceImportFeedback");
+        });
+  }
+
   @PostMapping("/{storeId}/documents/delete")
   public Mono<String> deleteDocuments(
       @PathVariable String storeId,
