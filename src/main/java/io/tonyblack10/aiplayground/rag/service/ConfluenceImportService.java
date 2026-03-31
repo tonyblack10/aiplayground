@@ -83,7 +83,7 @@ public class ConfluenceImportService {
   }
 
   private Flux<String> fetchAllPageIds(String spaceId) {
-    String initialPath = "/wiki/api/v2/spaces/" + spaceId + "/pages?limit=" + PAGE_BATCH_SIZE;
+    String initialPath = "/wiki/api/v2/spaces/" + spaceId + "/pages?limit=" + PAGE_BATCH_SIZE + "&depth=all";
     return fetchPageBatch(initialPath)
         .expand(response -> {
           if (response.links() == null || response.links().next() == null) {
