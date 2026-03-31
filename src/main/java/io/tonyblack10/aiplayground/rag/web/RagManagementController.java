@@ -146,6 +146,23 @@ public class RagManagementController {
         });
   }
 
+  @PostMapping("/{storeId}/documents/s3")
+  public Mono<String> importFromS3(
+      @PathVariable String storeId,
+      @RequestParam String bucketName,
+      @RequestParam(defaultValue = "") String prefix,
+      @RequestParam List<String> fileFormats,
+      Model model) {
+    return managementService.importFromS3(storeId, bucketName.strip(), prefix.strip(), fileFormats)
+        .doOnNext(result -> model.addAttribute("s3Result", result))
+        .thenReturn("rag/fragments/s3-import-result :: s3ImportFeedback")
+        .onErrorResume(e -> {
+          log.error("S3 import failed for bucket {}", bucketName, e);
+          model.addAttribute("errorMessage", "Importação falhou: " + e.getMessage());
+          return Mono.just("rag/fragments/s3-import-result :: s3ImportFeedback");
+        });
+  }
+
   @PostMapping("/{storeId}/documents/delete")
   public Mono<String> deleteDocuments(
       @PathVariable String storeId,

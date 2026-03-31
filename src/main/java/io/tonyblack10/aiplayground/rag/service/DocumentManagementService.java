@@ -4,6 +4,7 @@ import io.tonyblack10.aiplayground.rag.model.ConfluenceImportResult;
 import io.tonyblack10.aiplayground.rag.model.DocumentEntry;
 import io.tonyblack10.aiplayground.rag.model.FileUploadResult;
 import io.tonyblack10.aiplayground.rag.model.MondayImportResult;
+import io.tonyblack10.aiplayground.rag.model.S3ImportResult;
 import io.tonyblack10.aiplayground.rag.registry.DocumentRegistry;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,7 @@ public class DocumentManagementService {
   private final GitHubImporter gitHubImportService;
   private final ConfluenceImportService confluenceImportService;
   private final MondayImportService mondayImportService;
+  private final S3ImportService s3ImportService;
 
   public DocumentManagementService(
       VectorStoreRegistry vectorStoreRegistry,
@@ -33,13 +35,15 @@ public class DocumentManagementService {
       DocumentParserService parserService,
       GitHubImporter gitHubImportService,
       ConfluenceImportService confluenceImportService,
-      MondayImportService mondayImportService) {
+      MondayImportService mondayImportService,
+      S3ImportService s3ImportService) {
     this.vectorStoreRegistry = vectorStoreRegistry;
     this.documentRegistry = documentRegistry;
     this.parserService = parserService;
     this.gitHubImportService = gitHubImportService;
     this.confluenceImportService = confluenceImportService;
     this.mondayImportService = mondayImportService;
+    this.s3ImportService = s3ImportService;
   }
 
   public Mono<List<DocumentEntry>> listDocuments(String storeId) {
@@ -132,6 +136,23 @@ public class DocumentManagementService {
           return new MondayImportResult(
               result.itemsProcessed(),
               result.itemsIngested(),
+              result.chunksIngested(),
+              result.errors(),
+              List.of());
+        }).subscribeOn(Schedulers.boundedElastic()));
+  }
+
+  public Mono<S3ImportResult> importFromS3(String storeId, String bucketName, String prefix, List<String> extensions) {
+    return s3ImportService.importFromBucket(bucketName, prefix, extensions)
+        .flatMap(result -> Mono.fromCallable(() -> {
+          if (!result.documents().isEmpty()) {
+            VectorStore store = vectorStoreRegistry.getStore(storeId);
+            store.add(result.documents());
+            documentRegistry.register(storeId, result.documents());
+          }
+          return new S3ImportResult(
+              result.filesProcessed(),
+              result.filesIngested(),
               result.chunksIngested(),
               result.errors(),
               List.of());

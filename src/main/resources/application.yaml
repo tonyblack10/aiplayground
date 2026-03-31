@@ -32,6 +32,11 @@ app:
   monday:
     api-url: ${MONDAY_API_URL:https://api.monday.com/v2}
     api-token: ${MONDAY_API_TOKEN:}
+  s3:
+    region: ${AWS_REGION:us-east-1}
+    access-key-id: ${AWS_ACCESS_KEY_ID:}
+    secret-access-key: ${AWS_SECRET_ACCESS_KEY:}
+    endpoint: ${AWS_S3_ENDPOINT:}
 
 # add trace logging for webclient to help debug issues with external API calls
 logging:
