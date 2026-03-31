@@ -3,6 +3,7 @@ package io.tonyblack10.aiplayground.rag.service;
 import io.tonyblack10.aiplayground.rag.model.ConfluenceImportResult;
 import io.tonyblack10.aiplayground.rag.model.DocumentEntry;
 import io.tonyblack10.aiplayground.rag.model.FileUploadResult;
+import io.tonyblack10.aiplayground.rag.model.MondayImportResult;
 import io.tonyblack10.aiplayground.rag.registry.DocumentRegistry;
 import java.util.List;
 import java.util.Map;
@@ -24,18 +25,21 @@ public class DocumentManagementService {
   private final DocumentParserService parserService;
   private final GitHubImporter gitHubImportService;
   private final ConfluenceImportService confluenceImportService;
+  private final MondayImportService mondayImportService;
 
   public DocumentManagementService(
       VectorStoreRegistry vectorStoreRegistry,
       DocumentRegistry documentRegistry,
       DocumentParserService parserService,
       GitHubImporter gitHubImportService,
-      ConfluenceImportService confluenceImportService) {
+      ConfluenceImportService confluenceImportService,
+      MondayImportService mondayImportService) {
     this.vectorStoreRegistry = vectorStoreRegistry;
     this.documentRegistry = documentRegistry;
     this.parserService = parserService;
     this.gitHubImportService = gitHubImportService;
     this.confluenceImportService = confluenceImportService;
+    this.mondayImportService = mondayImportService;
   }
 
   public Mono<List<DocumentEntry>> listDocuments(String storeId) {
@@ -111,6 +115,23 @@ public class DocumentManagementService {
           return new ConfluenceImportResult(
               result.pagesProcessed(),
               result.pagesIngested(),
+              result.chunksIngested(),
+              result.errors(),
+              List.of());
+        }).subscribeOn(Schedulers.boundedElastic()));
+  }
+
+  public Mono<MondayImportResult> importFromMonday(String storeId, String boardId, String groupId, List<String> fields) {
+    return mondayImportService.importFromBoard(boardId, groupId, fields)
+        .flatMap(result -> Mono.fromCallable(() -> {
+//          if (!result.documents().isEmpty()) {
+//            VectorStore store = vectorStoreRegistry.getStore(storeId);
+//            store.add(result.documents());
+//            documentRegistry.register(storeId, result.documents());
+//          }
+          return new MondayImportResult(
+              result.itemsProcessed(),
+              result.itemsIngested(),
               result.chunksIngested(),
               result.errors(),
               List.of());

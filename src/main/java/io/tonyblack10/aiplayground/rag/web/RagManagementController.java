@@ -2,6 +2,7 @@ package io.tonyblack10.aiplayground.rag.web;
 
 import io.tonyblack10.aiplayground.rag.service.DocumentManagementService;
 import io.tonyblack10.aiplayground.rag.service.VectorStoreRegistry;
+import java.util.Arrays;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -123,6 +124,25 @@ public class RagManagementController {
           log.error("Confluence import failed for space {}", spaceKey, e);
           model.addAttribute("errorMessage", "Importação falhou: " + e.getMessage());
           return Mono.just("rag/fragments/confluence-import-result :: confluenceImportFeedback");
+        });
+  }
+
+  @PostMapping("/{storeId}/documents/monday")
+  public Mono<String> importFromMonday(
+      @PathVariable String storeId,
+      @RequestParam(defaultValue = "18390996096") String boardId,
+      @RequestParam(defaultValue = "") String groupId,
+      @RequestParam(defaultValue = "") String fields,
+      Model model) {
+    List<String> fieldList = fields.isBlank() ? List.of()
+        : Arrays.stream(fields.split(",")).map(String::trim).filter(s -> !s.isBlank()).toList();
+    return managementService.importFromMonday(storeId, boardId.strip(), groupId.strip(), fieldList)
+        .doOnNext(result -> model.addAttribute("mondayResult", result))
+        .thenReturn("rag/fragments/monday-import-result :: mondayImportFeedback")
+        .onErrorResume(e -> {
+          log.error("Monday import failed for board {}", boardId, e);
+          model.addAttribute("errorMessage", "Importação falhou: " + e.getMessage());
+          return Mono.just("rag/fragments/monday-import-result :: mondayImportFeedback");
         });
   }
 

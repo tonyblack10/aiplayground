@@ -14,7 +14,11 @@
       "Bash(find ~/.m2/repository/org/springframework/ai -name *.jar)",
       "Bash(xargs -I{} jar tf {})",
       "Bash(\"C:/Users/tonyb/Documents/projects/labs/ia/aiplayground/src/main/java/io/tonyblack10/aiplayground/chat/dto/SendMessageDTO.java\":*)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(mvn compile:*)",
+      "WebFetch(domain:api.monday.com)",
+      "WebSearch",
+      "Bash(curl:*)"
     ]
   }
 }

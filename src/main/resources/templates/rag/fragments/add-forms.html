@@ -22,6 +22,11 @@
               onclick="switchAddTab('add-tab-confluence', 'add-panel-confluence')">
         Importar do Confluence
       </button>
+      <button id="add-tab-monday"
+              class="tab-btn px-4 py-2.5 text-sm font-medium -mb-px"
+              onclick="switchAddTab('add-tab-monday', 'add-panel-monday')">
+        Importar do Monday
+      </button>
     </nav>
   </div>
 
@@ -203,15 +208,87 @@
   </div>
 
 
+  <!-- Monday panel -->
+  <div id="add-panel-monday" class="hidden">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-100 bg-gray-50">
+        <h3 class="text-base font-semibold text-gray-800">Importar do Monday</h3>
+        <p class="text-sm text-gray-500 mt-0.5">Busca todos os itens de um Board e ingere o conteúdo no RAG</p>
+      </div>
+      <div class="p-6">
+        <form
+            id="monday-form"
+            th:hx-post="@{/rag/{s}/documents/monday(s=${storeId})}"
+            hx-target="#monday-feedback"
+            hx-swap="innerHTML"
+            hx-indicator="#monday-spinner"
+            class="space-y-4">
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">ID do Board <span class="text-red-500">*</span></label>
+            <input type="text" name="boardId" id="monday-board-id" required
+                   oninput="validateMondayForm()"
+                   placeholder="Ex: 1234567890"
+                   class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
+            <p class="mt-1 text-xs text-gray-400">O ID do Board é exibido na URL do Monday (ex: /boards/<strong>1234567890</strong>)</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">ID do Grupo <span class="text-xs text-gray-400 font-normal">(opcional)</span></label>
+            <input type="text" name="groupId" id="monday-group-id"
+                   placeholder="Ex: topics, new_group12345"
+                   class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
+            <p class="mt-1 text-xs text-gray-400">Se informado, apenas os itens desse grupo serão ingeridos</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Campos a extrair <span class="text-xs text-gray-400 font-normal">(opcional)</span></label>
+            <input type="text" name="fields" id="monday-fields"
+                   placeholder="Ex: Status, Responsável, Data de entrega"
+                   class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
+            <p class="mt-1 text-xs text-gray-400">Nomes ou IDs de colunas separados por vírgula. Se vazio, todos os campos serão extraídos</p>
+          </div>
+
+          <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-xs text-blue-700">
+            A importação usará as credenciais Monday configuradas nas propriedades da aplicação
+            (<code class="font-mono">MONDAY_API_TOKEN</code>).
+            Um intervalo de 500ms é aplicado entre as requisições para não sobrecarregar o servidor.
+            Erros de rate limiting são tratados com retry automático (até 3 tentativas).
+          </div>
+
+          <div id="monday-feedback"></div>
+
+          <div class="flex items-center gap-3">
+            <button type="submit" id="monday-btn" disabled
+                    class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4.116 14.666a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8zm7.895 0a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8zm7.873 0a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8zM3.2 4.534a1.6 1.6 0 0 0-1.39 2.39l3.2 5.867a1.6 1.6 0 0 0 1.39.809h11.221a1.6 1.6 0 0 0 1.387-.803l3.222-5.867A1.6 1.6 0 0 0 20.843 4.534H3.2z"/>
+              </svg>
+              Importar Board
+            </button>
+            <span id="monday-spinner" class="htmx-indicator text-sm text-gray-500 flex items-center gap-1.5">
+              <svg class="animate-spin w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+              Importando itens...
+            </span>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+
   <script>
     const MAX_TOTAL_SIZE = 12 * 1024 * 1024;
     let fileTransfer = new DataTransfer();
 
     function switchAddTab(activeTabId, activePanelId) {
-      ['add-tab-upload', 'add-tab-github', 'add-tab-confluence'].forEach(id => {
+      ['add-tab-upload', 'add-tab-github', 'add-tab-confluence', 'add-tab-monday'].forEach(id => {
         document.getElementById(id).classList.toggle('tab-active', id === activeTabId);
       });
-      ['add-panel-upload', 'add-panel-github', 'add-panel-confluence'].forEach(id => {
+      ['add-panel-upload', 'add-panel-github', 'add-panel-confluence', 'add-panel-monday'].forEach(id => {
         document.getElementById(id).classList.toggle('hidden', id !== activePanelId);
       });
     }
@@ -295,12 +372,20 @@
           !/^[A-Za-z][A-Za-z0-9_]{0,49}$/.test(spaceKey);
     }
 
+    function validateMondayForm() {
+      const boardId = document.getElementById('monday-board-id').value.trim();
+      document.getElementById('monday-btn').disabled = !/^\d+$/.test(boardId);
+    }
+
     document.addEventListener('htmx:beforeRequest', function(evt) {
       if (evt.target.id === 'confluence-form') {
         document.getElementById('confluence-btn').disabled = true;
       }
       if (evt.target.id === 'github-form') {
         document.getElementById('github-btn').disabled = true;
+      }
+      if (evt.target.id === 'monday-form') {
+        document.getElementById('monday-btn').disabled = true;
       }
       if (evt.target.id !== 'upload-form') return;
       document.getElementById('submit-btn').disabled = true;
@@ -325,6 +410,9 @@
       }
       if (evt.target.id === 'confluence-form') {
         validateConfluenceForm();
+      }
+      if (evt.target.id === 'monday-form') {
+        validateMondayForm();
       }
     });
   </script>
