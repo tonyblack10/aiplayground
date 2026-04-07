@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chat – Spring AI Playground</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    /* Bounce animation for loading dots */
+    @keyframes bounce-dot {
+      0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+      40% { transform: translateY(-6px); opacity: 1; }
+    }
+    .dot-1 { animation: bounce-dot 1.2s ease-in-out infinite; }
+    .dot-2 { animation: bounce-dot 1.2s ease-in-out 0.2s infinite; }
+    .dot-3 { animation: bounce-dot 1.2s ease-in-out 0.4s infinite; }
+
+    /* Custom scrollbar for messages area */
+    #messages::-webkit-scrollbar { width: 5px; }
+    #messages::-webkit-scrollbar-track { background: transparent; }
+    #messages::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+    #messages::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+
+    /* Prose styles for markdown rendered content */
+    .prose-ai p { margin: 0.5em 0; }
+    .prose-ai p:first-child { margin-top: 0; }
+    .prose-ai p:last-child { margin-bottom: 0; }
+    .prose-ai ul { list-style: disc; padding-left: 1.25em; margin: 0.5em 0; }
+    .prose-ai ol { list-style: decimal; padding-left: 1.25em; margin: 0.5em 0; }
+    .prose-ai li { margin: 0.25em 0; }
+    .prose-ai code { background: #f1f5f9; border-radius: 4px; padding: 0.1em 0.35em; font-size: 0.85em; font-family: monospace; color: #0f172a; }
+    .prose-ai pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 1em; overflow-x: auto; margin: 0.75em 0; font-size: 0.82em; }
+    .prose-ai pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+    .prose-ai blockquote { border-left: 3px solid #6366f1; padding-left: 0.75em; color: #64748b; margin: 0.75em 0; font-style: italic; }
+    .prose-ai h1, .prose-ai h2, .prose-ai h3 { font-weight: 600; margin: 0.75em 0 0.4em; color: #1e293b; }
+    .prose-ai h1 { font-size: 1.1em; }
+    .prose-ai h2 { font-size: 1.0em; }
+    .prose-ai h3 { font-size: 0.95em; }
+    .prose-ai strong { font-weight: 600; color: #1e293b; }
+    .prose-ai a { color: #6366f1; text-decoration: underline; }
+    .prose-ai hr { border-color: #e2e8f0; margin: 0.75em 0; }
+    .prose-ai table { border-collapse: collapse; width: 100%; margin: 0.75em 0; font-size: 0.85em; }
+    .prose-ai th, .prose-ai td { border: 1px solid #e2e8f0; padding: 0.4em 0.75em; text-align: left; }
+    .prose-ai th { background: #f8fafc; font-weight: 600; }
+
+    /* Toggle switch */
+    .toggle-checkbox:checked + .toggle-track { background-color: #6366f1; }
+    .toggle-checkbox:checked + .toggle-track .toggle-thumb { transform: translateX(20px); }
+
+    /* Textarea custom */
+    #messageInput { min-height: 48px; line-height: 1.5; }
+  </style>
+</head>
+<body class="bg-slate-50 flex flex-col h-screen overflow-hidden font-sans antialiased">
+
+<!-- Navbar -->
+<div th:replace="~{fragments/navbar :: navbar('chat')}"></div>
+
+<!-- Main layout -->
+<div class="flex flex-1 overflow-hidden">
+
+  <!-- ===== SETTINGS SIDEBAR ===== -->
+  <aside class="w-72 bg-slate-900 flex flex-col flex-shrink-0 border-r border-slate-800">
+
+    <!-- Sidebar header -->
+    <div class="px-5 py-4 border-b border-slate-700 flex-shrink-0">
+      <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        Configurações
+      </h2>
+    </div>
+
+    <!-- Sidebar body (scrollable) -->
+    <div class="flex-1 overflow-y-auto px-4 py-5 space-y-6">
+
+      <!-- Model selector -->
+      <div>
+        <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Modelo</label>
+        <select id="modelSelect"
+                class="w-full bg-slate-800 text-white text-sm rounded-lg px-3 py-2.5
+                       border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500
+                       cursor-pointer transition-colors hover:bg-slate-750">
+          <option th:each="m : ${models}"
+                  th:value="${m.id}"
+                  th:text="${m.displayName}"
+                  th:selected="${m.id == 'gpt-4o-mini'}">Model</option>
+        </select>
+      </div>
+
+      <!-- Temperature -->
+      <div>
+        <div class="flex justify-between items-center mb-3">
+          <label class="text-xs font-medium text-slate-400 uppercase tracking-wider">Temperatura</label>
+          <span id="tempValue"
+                class="text-sm font-mono text-indigo-400 bg-slate-800 px-2 py-0.5 rounded-md border border-slate-700">
+            0.7
+          </span>
+        </div>
+        <input type="range" id="temperatureSlider"
+               min="0" max="1" step="0.1" value="0.7"
+               oninput="document.getElementById('tempValue').textContent = parseFloat(this.value).toFixed(1)"
+               class="w-full h-1.5 rounded-full appearance-none cursor-pointer
+                      bg-slate-700 accent-indigo-500"/>
+        <div class="flex justify-between text-xs text-slate-600 mt-1.5">
+          <span>Preciso</span>
+          <span>Criativo</span>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <hr class="border-slate-700"/>
+
+      <!-- RAG toggle -->
+      <div>
+        <label class="text-xs font-medium text-slate-400 uppercase tracking-wider block mb-3">
+          Busca em Documentos (RAG)
+        </label>
+        <label class="flex items-center gap-3 cursor-pointer group">
+          <div class="relative flex-shrink-0">
+            <input type="checkbox" id="ragToggle" class="sr-only toggle-checkbox"
+                   onchange="toggleRagStore()"/>
+            <div class="toggle-track w-11 h-6 bg-slate-700 rounded-full transition-colors duration-200">
+              <div class="toggle-thumb absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow
+                          transition-transform duration-200"></div>
+            </div>
+          </div>
+          <span class="text-sm text-slate-300 group-hover:text-white transition-colors">Habilitar RAG</span>
+        </label>
+
+        <div id="storeSelector" class="mt-4 hidden">
+          <label class="block text-xs text-slate-500 mb-1.5">Vector Store</label>
+          <select id="storeSelect"
+                  class="w-full bg-slate-800 text-white text-sm rounded-lg px-3 py-2.5
+                         border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+            <option th:each="store : ${storeInfos}"
+                    th:value="${store.id}"
+                    th:text="${store.displayName}">Store</option>
+          </select>
+          <p class="text-xs text-slate-600 mt-1.5">
+            Enriquece as respostas com seus documentos indexados.
+          </p>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <hr class="border-slate-700"/>
+
+      <!-- System prompt info -->
+      <div class="rounded-xl bg-slate-800 border border-slate-700 p-3.5">
+        <div class="flex items-center gap-2 mb-2">
+          <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <span class="text-xs font-medium text-slate-300">Prompt de Sistema</span>
+        </div>
+        <p class="text-xs text-slate-500 leading-relaxed">
+          Assistente de documentação técnica, didático e cordial.
+          Responde <strong class="text-slate-400">sempre em Português (BR)</strong>.
+        </p>
+      </div>
+
+    </div>
+
+    <!-- Clear conversation button -->
+    <div class="px-4 py-4 border-t border-slate-700 flex-shrink-0">
+      <button onclick="clearConversation()"
+              class="w-full text-sm text-slate-400 hover:text-white border border-slate-700
+                     hover:border-slate-500 rounded-xl px-4 py-2.5 transition-all duration-150
+                     flex items-center justify-center gap-2 hover:bg-slate-800">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+        </svg>
+        Limpar Conversa
+      </button>
+    </div>
+  </aside>
+
+  <!-- ===== CHAT AREA ===== -->
+  <main class="flex-1 flex flex-col overflow-hidden bg-white">
+
+    <!-- Chat header -->
+    <div class="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-white shadow-sm flex-shrink-0">
+      <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600
+                  flex items-center justify-center flex-shrink-0 shadow-sm">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+        </svg>
+      </div>
+      <div class="flex-1">
+        <h2 class="font-semibold text-slate-800">Assistente de Documentação Técnica</h2>
+        <p class="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
+          <span class="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+          Online &bull; Responde em Português do Brasil
+        </p>
+      </div>
+      <div id="streamingIndicator" class="hidden items-center gap-2 text-xs text-indigo-500 font-medium">
+        <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+        </svg>
+        Gerando resposta...
+      </div>
+    </div>
+
+    <!-- Messages area -->
+    <div id="messages" class="flex-1 overflow-y-auto px-6 py-6 space-y-5">
+
+      <!-- Welcome message (static) -->
+      <div class="flex items-start gap-3 welcome-msg">
+        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600
+                    flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+          </svg>
+        </div>
+        <div class="bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-sm px-4 py-3 max-w-2xl shadow-xs">
+          <p class="text-sm text-slate-700 leading-relaxed">
+            Olá! Sou seu assistente especializado em documentação técnica. Posso ajudá-lo a entender
+            documentos, explicar conceitos técnicos e responder perguntas sobre sua base de conhecimento.
+          </p>
+          <p class="text-sm text-slate-700 leading-relaxed mt-2">
+            Ative o <strong>RAG</strong> nas configurações para consultar seus documentos indexados.
+            Como posso ajudá-lo hoje?
+          </p>
+          <p class="text-xs text-slate-400 mt-2">Agora mesmo</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Input area -->
+    <div class="flex-shrink-0 border-t border-slate-100 bg-white px-6 py-4">
+      <div class="flex items-end gap-3 max-w-4xl mx-auto">
+        <div class="flex-1 relative">
+          <textarea id="messageInput" rows="1"
+                    placeholder="Digite sua mensagem... (Ctrl+Enter para enviar)"
+                    class="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50
+                           px-4 py-3 pr-4 text-sm text-slate-800 placeholder-slate-400
+                           focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent
+                           transition-shadow hover:border-slate-300"
+                    oninput="autoResize(this)"
+                    onkeydown="handleKeyDown(event)"></textarea>
+        </div>
+        <button id="sendButton" onclick="sendMessage()"
+                class="flex-shrink-0 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white
+                       rounded-2xl p-3 transition-all duration-150 shadow-sm
+                       disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                  d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+          </svg>
+        </button>
+      </div>
+      <p class="text-xs text-center text-slate-400 mt-2">
+        Ctrl+Enter para enviar &bull; O assistente pode cometer erros. Verifique informações importantes.
+      </p>
+    </div>
+  </main>
+
+</div><!-- end main layout -->
+
+<script>
+  // ── Config ──────────────────────────────────────────────────────────────────
+  marked.setOptions({ breaks: true, gfm: true });
+
+  let isStreaming = false;
+  let currentEventSource = null;
+
+  // ── UI helpers ──────────────────────────────────────────────────────────────
+
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 128) + 'px';
+  }
+
+  function scrollToBottom() {
+    const messages = document.getElementById('messages');
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function setSendDisabled(disabled) {
+    const btn = document.getElementById('sendButton');
+    const input = document.getElementById('messageInput');
+    btn.disabled = disabled;
+    input.disabled = disabled;
+    const indicator = document.getElementById('streamingIndicator');
+    indicator.classList.toggle('hidden', !disabled);
+    indicator.classList.toggle('flex', disabled);
+  }
+
+  function toggleRagStore() {
+    const checked = document.getElementById('ragToggle').checked;
+    document.getElementById('storeSelector').classList.toggle('hidden', !checked);
+  }
+
+  function handleKeyDown(e) {
+    if (e.ctrlKey && e.key === 'Enter') {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
+
+  // ── Message rendering ────────────────────────────────────────────────────────
+
+  function getTimeLabel() {
+    return new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function appendUserMessage(text) {
+    const messages = document.getElementById('messages');
+    const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const html = `
+      <div class="flex items-end justify-end gap-2">
+        <div class="max-w-xl">
+          <div class="bg-indigo-600 text-white rounded-2xl rounded-br-sm px-4 py-3 shadow-sm">
+            <p class="text-sm leading-relaxed whitespace-pre-wrap">${escaped}</p>
+          </div>
+          <p class="text-xs text-slate-400 text-right mt-1 pr-1">${getTimeLabel()}</p>
+        </div>
+      </div>`;
+    messages.insertAdjacentHTML('beforeend', html);
+    scrollToBottom();
+  }
+
+  function appendAiLoadingBubble(id) {
+    const messages = document.getElementById('messages');
+    const html = `
+      <div class="flex items-start gap-3" id="wrap-${id}">
+        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600
+                    flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+          </svg>
+        </div>
+        <div class="bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-xs max-w-2xl">
+          <div id="${id}">
+            <div class="flex items-center gap-1.5 py-1">
+              <div class="w-2 h-2 bg-indigo-400 rounded-full dot-1"></div>
+              <div class="w-2 h-2 bg-indigo-400 rounded-full dot-2"></div>
+              <div class="w-2 h-2 bg-indigo-400 rounded-full dot-3"></div>
+            </div>
+          </div>
+          <p id="time-${id}" class="text-xs text-slate-400 mt-1 hidden">${getTimeLabel()}</p>
+        </div>
+      </div>`;
+    messages.insertAdjacentHTML('beforeend', html);
+    scrollToBottom();
+  }
+
+  function updateAiMessage(id, text) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    // Show raw text while streaming (fast, no markdown parse overhead per token)
+    const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    el.innerHTML = `<p class="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">${escaped}</p>`;
+    scrollToBottom();
+  }
+
+  function finalizeAiMessage(id, text, isError = false) {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    if (isError) {
+      el.innerHTML = `
+        <div class="flex items-center gap-2 text-red-500">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <p class="text-sm">${text}</p>
+        </div>`;
+    } else if (text) {
+      el.innerHTML = `<div class="prose-ai text-sm text-slate-700 leading-relaxed">${marked.parse(text)}</div>`;
+    } else {
+      el.innerHTML = `<p class="text-sm text-slate-400 italic">Resposta vazia.</p>`;
+    }
+
+    const timeEl = document.getElementById('time-' + id);
+    if (timeEl) timeEl.classList.remove('hidden');
+    scrollToBottom();
+  }
+
+  // ── Send message ─────────────────────────────────────────────────────────────
+
+  function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const message = input.value.trim();
+    if (!message || isStreaming) return;
+
+    const model = document.getElementById('modelSelect').value;
+    const temperature = document.getElementById('temperatureSlider').value;
+    const useRag = document.getElementById('ragToggle').checked;
+    const storeId = useRag ? document.getElementById('storeSelect').value : '';
+
+    // Append user bubble
+    appendUserMessage(message);
+
+    // Reset input
+    input.value = '';
+    input.style.height = 'auto';
+
+    // Append AI loading bubble
+    const aiMsgId = 'ai-' + Date.now();
+    appendAiLoadingBubble(aiMsgId);
+
+    isStreaming = true;
+    setSendDisabled(true);
+
+    // Close any previous SSE connection
+    if (currentEventSource) {
+      currentEventSource.close();
+    }
+
+    let accumulated = '';
+
+    const params = new URLSearchParams({ message, model, temperature, useRag, storeId });
+    const es = new EventSource('/chat/stream?' + params.toString());
+    currentEventSource = es;
+
+    es.onmessage = (e) => {
+      accumulated += JSON.parse(e.data);
+      updateAiMessage(aiMsgId, accumulated);
+    };
+
+    es.addEventListener('done', () => {
+      es.close();
+      currentEventSource = null;
+      finalizeAiMessage(aiMsgId, accumulated);
+      isStreaming = false;
+      setSendDisabled(false);
+      input.focus();
+    });
+
+    es.addEventListener('error', (e) => {
+      es.close();
+      currentEventSource = null;
+      finalizeAiMessage(aiMsgId, e.data || 'Erro ao processar a resposta.', true);
+      isStreaming = false;
+      setSendDisabled(false);
+    });
+
+    es.onerror = () => {
+      if (es.readyState === EventSource.CLOSED) return;
+      es.close();
+      currentEventSource = null;
+      finalizeAiMessage(aiMsgId, accumulated || 'Conexão interrompida. Tente novamente.');
+      isStreaming = false;
+      setSendDisabled(false);
+    };
+  }
+
+  // ── Clear conversation ───────────────────────────────────────────────────────
+
+  const WELCOME_HTML = document.getElementById('messages').innerHTML;
+
+  function clearConversation() {
+    if (isStreaming) return;
+    if (!confirm('Deseja limpar a conversa atual? O histórico será apagado.')) return;
+
+    fetch('/chat/clear', { method: 'POST' })
+      .then(() => {
+        document.getElementById('messages').innerHTML = WELCOME_HTML;
+      })
+      .catch(() => {
+        alert('Erro ao limpar a conversa. Tente novamente.');
+      });
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────────────
+  document.getElementById('messageInput').focus();
+</script>
+
+</body>
+</html>

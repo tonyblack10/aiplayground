@@ -18,7 +18,8 @@
       "Bash(mvn compile:*)",
       "WebFetch(domain:api.monday.com)",
       "WebSearch",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(mvn test:*)"
     ]
   }
 }
