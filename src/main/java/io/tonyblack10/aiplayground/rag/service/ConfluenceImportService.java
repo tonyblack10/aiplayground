@@ -62,6 +62,14 @@ public class ConfluenceImportService {
         .flatMap(pageIds -> processPages(pageIds, spaceKey));
   }
 
+  public Mono<ConfluenceImportResult> importSpecificPages(String spaceKey, List<String> pageIds) {
+    if (baseUrl.isBlank()) {
+      return Mono.error(new IllegalStateException(
+          "Confluence não está configurado. Defina CONFLUENCE_BASE_URL, CONFLUENCE_EMAIL e CONFLUENCE_API_TOKEN."));
+    }
+    return processPages(pageIds, spaceKey);
+  }
+
   private Mono<String> resolveSpaceId(String spaceKey) {
     return webClient.get()
         .uri(uriBuilder -> uriBuilder

@@ -161,7 +161,7 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div class="px-6 py-4 border-b border-gray-100 bg-gray-50">
         <h3 class="text-base font-semibold text-gray-800">Importar do Confluence</h3>
-        <p class="text-sm text-gray-500 mt-0.5">Busca todas as páginas de um Space e ingere o conteúdo no RAG</p>
+        <p class="text-sm text-gray-500 mt-0.5">Busca páginas de um Space e ingere o conteúdo no RAG</p>
       </div>
       <div class="p-6">
         <form
@@ -181,6 +181,36 @@
             <p class="mt-1 text-xs text-gray-400">A chave do Space é exibida na URL do Confluence (ex: /wiki/spaces/<strong>PROJ</strong>)</p>
           </div>
 
+          <!-- Import mode toggle -->
+          <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm font-medium">
+            <label class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 cursor-pointer transition-colors bg-blue-600 text-white" id="confluence-mode-space-label">
+              <input type="radio" name="confluenceMode" value="space" checked
+                     class="sr-only" onchange="switchConfluenceMode('space')"/>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+              </svg>
+              Importar Space completo
+            </label>
+            <label class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 cursor-pointer transition-colors text-gray-600 hover:bg-gray-50" id="confluence-mode-pages-label">
+              <input type="radio" name="confluenceMode" value="pages"
+                     class="sr-only" onchange="switchConfluenceMode('pages')"/>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+              </svg>
+              Páginas específicas
+            </label>
+          </div>
+
+          <!-- Specific page IDs field (hidden by default) -->
+          <div id="confluence-page-ids-section" class="hidden">
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">IDs das Páginas <span class="text-red-500">*</span></label>
+            <textarea name="pageIds" id="confluence-page-ids" rows="4"
+                      oninput="validateConfluenceForm()"
+                      placeholder="123456&#10;789012&#10;345678"
+                      class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono resize-y"></textarea>
+            <p class="mt-1 text-xs text-gray-400">Informe um ID por linha. O ID da página aparece na URL do Confluence (ex: /wiki/spaces/PROJ/pages/<strong>123456</strong>)</p>
+          </div>
+
           <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-xs text-blue-700">
             A importação usará as credenciais Confluence configuradas nas propriedades da aplicação
             (<code class="font-mono">CONFLUENCE_BASE_URL</code>, <code class="font-mono">CONFLUENCE_EMAIL</code>,
@@ -197,7 +227,7 @@
               <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path d="M11.53 1.02C5.65 1.39 1 6.29 1 12.27c0 .74.08 1.47.22 2.17.08.38.49.56.82.36l2.05-1.23c.24-.14.36-.42.3-.69A8.27 8.27 0 0 1 4.18 12c0-4.35 3.32-7.92 7.6-8.24 4.57-.34 8.43 3.28 8.43 7.77 0 4.26-3.42 7.72-7.67 7.77a7.6 7.6 0 0 1-4.73-1.63l2.26-1.36c.38-.23.37-.8-.03-1.01L3.1 12.48a.6.6 0 0 0-.88.53v7.27c0 .45.49.72.88.49l2.06-1.24A11.56 11.56 0 0 0 11.73 23C18.1 23 23.24 17.7 23 11.23 22.77 5.01 17.6.63 11.53 1.02z"/>
               </svg>
-              Importar Space
+              <span id="confluence-btn-label">Importar Space</span>
             </button>
             <span id="confluence-spinner" class="htmx-indicator text-sm text-gray-500 flex items-center gap-1.5">
               <svg class="animate-spin w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24">
@@ -480,10 +510,41 @@
           !repoUrl.startsWith('https://') || branch.length === 0;
     }
 
+    function switchConfluenceMode(mode) {
+      const pageIdsSection = document.getElementById('confluence-page-ids-section');
+      const spaceLabel = document.getElementById('confluence-mode-space-label');
+      const pagesLabel = document.getElementById('confluence-mode-pages-label');
+      const btnLabel = document.getElementById('confluence-btn-label');
+      const pageIdsTextarea = document.getElementById('confluence-page-ids');
+
+      if (mode === 'pages') {
+        pageIdsSection.classList.remove('hidden');
+        spaceLabel.className = spaceLabel.className.replace('bg-blue-600 text-white', 'text-gray-600 hover:bg-gray-50');
+        pagesLabel.className = pagesLabel.className.replace('text-gray-600 hover:bg-gray-50', 'bg-blue-600 text-white');
+        btnLabel.textContent = 'Importar Páginas';
+        pageIdsTextarea.required = true;
+      } else {
+        pageIdsSection.classList.add('hidden');
+        pagesLabel.className = pagesLabel.className.replace('bg-blue-600 text-white', 'text-gray-600 hover:bg-gray-50');
+        spaceLabel.className = spaceLabel.className.replace('text-gray-600 hover:bg-gray-50', 'bg-blue-600 text-white');
+        btnLabel.textContent = 'Importar Space';
+        pageIdsTextarea.required = false;
+      }
+      validateConfluenceForm();
+    }
+
     function validateConfluenceForm() {
       const spaceKey = document.getElementById('confluence-space-key').value.trim();
-      document.getElementById('confluence-btn').disabled =
-          !/^[A-Za-z][A-Za-z0-9_]{0,49}$/.test(spaceKey);
+      const mode = document.querySelector('input[name="confluenceMode"]:checked')?.value ?? 'space';
+      const validKey = /^[A-Za-z][A-Za-z0-9_]{0,49}$/.test(spaceKey);
+
+      if (mode === 'pages') {
+        const pageIds = document.getElementById('confluence-page-ids').value.trim();
+        const hasIds = pageIds.split('\n').map(s => s.trim()).filter(s => s.length > 0).length > 0;
+        document.getElementById('confluence-btn').disabled = !validKey || !hasIds;
+      } else {
+        document.getElementById('confluence-btn').disabled = !validKey;
+      }
     }
 
     function validateMondayForm() {

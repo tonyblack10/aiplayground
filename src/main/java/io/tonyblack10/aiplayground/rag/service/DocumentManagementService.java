@@ -110,19 +110,28 @@ public class DocumentManagementService {
 
   public Mono<ConfluenceImportResult> importFromConfluence(String storeId, String spaceKey) {
     return confluenceImportService.importFromSpace(spaceKey)
-        .flatMap(result -> Mono.fromCallable(() -> {
-          if (!result.documents().isEmpty()) {
-            VectorStore store = vectorStoreRegistry.getStore(storeId);
-            store.add(result.documents());
-            documentRegistry.register(storeId, result.documents());
-          }
-          return new ConfluenceImportResult(
-              result.pagesProcessed(),
-              result.pagesIngested(),
-              result.chunksIngested(),
-              result.errors(),
-              List.of());
-        }).subscribeOn(Schedulers.boundedElastic()));
+        .flatMap(result -> storeConfluenceResult(storeId, result));
+  }
+
+  public Mono<ConfluenceImportResult> importFromConfluencePages(String storeId, String spaceKey, List<String> pageIds) {
+    return confluenceImportService.importSpecificPages(spaceKey, pageIds)
+        .flatMap(result -> storeConfluenceResult(storeId, result));
+  }
+
+  private Mono<ConfluenceImportResult> storeConfluenceResult(String storeId, ConfluenceImportResult result) {
+    return Mono.fromCallable(() -> {
+      if (!result.documents().isEmpty()) {
+        VectorStore store = vectorStoreRegistry.getStore(storeId);
+        store.add(result.documents());
+        documentRegistry.register(storeId, result.documents());
+      }
+      return new ConfluenceImportResult(
+          result.pagesProcessed(),
+          result.pagesIngested(),
+          result.chunksIngested(),
+          result.errors(),
+          List.of());
+    }).subscribeOn(Schedulers.boundedElastic());
   }
 
   public Mono<MondayImportResult> importFromMonday(String storeId, String boardId, String groupId, List<String> fields) {

@@ -1,5 +1,6 @@
 package io.tonyblack10.aiplayground.rag.web;
 
+import io.tonyblack10.aiplayground.rag.model.ConfluenceImportResult;
 import io.tonyblack10.aiplayground.rag.service.DocumentManagementService;
 import io.tonyblack10.aiplayground.rag.service.VectorStoreRegistry;
 import java.util.Arrays;
@@ -116,12 +117,23 @@ public class RagManagementController {
   public Mono<String> importFromConfluence(
       @PathVariable String storeId,
       @RequestParam(defaultValue = "~5570589115414629b149a9a6cc9c310018c84e") String spaceKey,
+      @RequestParam(required = false) String pageIds,
       Model model) {
-    return managementService.importFromConfluence(storeId, spaceKey.strip().toUpperCase())
+    String key = spaceKey.strip().toUpperCase();
+    List<String> parsedPageIds = (pageIds != null && !pageIds.isBlank())
+        ? Arrays.stream(pageIds.split("[\\r\\n,]+"))
+              .map(String::strip)
+              .filter(s -> !s.isEmpty())
+              .toList()
+        : List.of();
+    Mono<ConfluenceImportResult> importMono = !parsedPageIds.isEmpty()
+        ? managementService.importFromConfluencePages(storeId, key, parsedPageIds)
+        : managementService.importFromConfluence(storeId, key);
+    return importMono
         .doOnNext(result -> model.addAttribute("confluenceResult", result))
         .thenReturn("rag/fragments/confluence-import-result :: confluenceImportFeedback")
         .onErrorResume(e -> {
-          log.error("Confluence import failed for space {}", spaceKey, e);
+          log.error("Confluence import failed for space {}", key, e);
           model.addAttribute("errorMessage", "Importação falhou: " + e.getMessage());
           return Mono.just("rag/fragments/confluence-import-result :: confluenceImportFeedback");
         });
