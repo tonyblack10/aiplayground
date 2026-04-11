@@ -22,6 +22,20 @@ spring:
     max-in-memory-size: 256MB
 
 app:
+  user:
+    accounts:
+      user01: "{noop}pass01"
+      user02: "{noop}pass02"
+      user03: "{noop}pass03"
+    permissions:
+      CREATE_RAG:
+        - user01
+        - user02
+      DELETE_RAG:
+        - user03
+      # Roles listed here are granted to ALL users.
+      # If a role appears here, its entry in the permissions map above is ignored.
+      all: []
   github:
     token: ${GITHUB_TOKEN}
     clone-dir: /tmp/github-clones
