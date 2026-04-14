@@ -35,19 +35,19 @@ public class GitHubImportService implements GitHubImporter {
     this.parserService = parserService;
   }
 
-  public Mono<List<Document>> importFromGitHub(String repoUrl, String branch) {
-    return Mono.fromCallable(() -> cloneAndParse(repoUrl, branch))
+  public Mono<List<Document>> importFromGitHub(String repoUrl, String branch, List<String> folders) {
+    return Mono.fromCallable(() -> cloneAndParse(repoUrl, branch, folders))
         .subscribeOn(Schedulers.boundedElastic())
         .map(lists -> lists.stream().flatMap(Collection::stream).toList());
   }
 
-  private List<List<Document>> cloneAndParse(String repoUrl, String branch) throws Exception {
+  private List<List<Document>> cloneAndParse(String repoUrl, String branch, List<String> folders) throws Exception {
     String repoName = extractRepoName(repoUrl);
     Path cloneDir = cloneBaseDir.resolve(repoName + "-" + UUID.randomUUID());
 
     try {
       cloneRepository(repoUrl, branch, cloneDir);
-      return collectMarkdownFiles(cloneDir);
+      return collectMarkdownFiles(cloneDir, folders);
     } finally {
       deleteDirectory(cloneDir);
     }
@@ -76,12 +76,28 @@ public class GitHubImportService implements GitHubImporter {
     log.info("Cloned {} (branch: {}) to {}", repoUrl, branch, targetDir);
   }
 
-  private List<List<Document>> collectMarkdownFiles(Path cloneDir) throws IOException {
+  private List<List<Document>> collectMarkdownFiles(Path cloneDir, List<String> folders) throws IOException {
     List<List<Document>> result = new ArrayList<>();
-    try (Stream<Path> walk = Files.walk(cloneDir)) {
+    List<Path> searchRoots = (folders == null || folders.isEmpty())
+        ? List.of(cloneDir)
+        : folders.stream()
+              .map(f -> cloneDir.resolve(f.replaceAll("^/+", "")))
+              .filter(Files::isDirectory)
+              .toList();
+
+    try (Stream<Path> walk = searchRoots.stream()
+        .flatMap(root -> {
+          try {
+            return Files.walk(root);
+          } catch (IOException e) {
+            log.warn("Could not walk folder {}: {}", root, e.getMessage());
+            return Stream.empty();
+          }
+        })) {
       List<Path> mdFiles = walk
           .filter(Files::isRegularFile)
           .filter(p -> p.getFileName().toString().toLowerCase().endsWith(".md"))
+          .distinct()
           .toList();
 
       log.info("Found {} .md files to ingest", mdFiles.size());

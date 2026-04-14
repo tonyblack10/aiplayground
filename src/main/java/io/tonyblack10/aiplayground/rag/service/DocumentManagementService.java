@@ -96,8 +96,8 @@ public class DocumentManagementService {
         }).subscribeOn(Schedulers.boundedElastic()));
   }
 
-  public Mono<List<DocumentEntry>> importFromGitHub(String storeId, String repoUrl, String branch) {
-    return gitHubImportService.importFromGitHub(repoUrl, branch)
+  public Mono<List<DocumentEntry>> importFromGitHub(String storeId, String repoUrl, String branch, List<String> folders) {
+    return gitHubImportService.importFromGitHub(repoUrl, branch, folders)
         .flatMap(docs -> Mono.fromCallable(() -> {
           VectorStore store = vectorStoreRegistry.getStore(storeId);
           if (!docs.isEmpty()) {

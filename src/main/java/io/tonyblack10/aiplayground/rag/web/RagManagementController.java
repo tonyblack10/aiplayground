@@ -101,8 +101,15 @@ public class RagManagementController {
       @PathVariable String storeId,
       @RequestParam(defaultValue = "https://github.com/tonyblack10/prompts-diversos.git") String repoUrl,
       @RequestParam(defaultValue = "main") String branch,
+      @RequestParam(required = false) String folders,
       Model model) {
-    return managementService.importFromGitHub(storeId, repoUrl, branch)
+    List<String> folderList = (folders != null && !folders.isBlank())
+        ? Arrays.stream(folders.split("[\\r\\n,]+"))
+              .map(String::strip)
+              .filter(s -> !s.isEmpty())
+              .toList()
+        : List.of();
+    return managementService.importFromGitHub(storeId, repoUrl, branch, folderList)
         .doOnNext(docs -> model.addAttribute("successMessage",
             "Importação concluída. " + docs.size() + " documento(s) adicionado(s) à store."))
         .thenReturn("rag/fragments/github-import-result :: githubImportFeedback")

@@ -6,5 +6,5 @@ import reactor.core.publisher.Mono;
 
 public interface GitHubImporter {
 
-  Mono<List<Document>> importFromGitHub(String repoUrl, String branch);
+  Mono<List<Document>> importFromGitHub(String repoUrl, String branch, List<String> folders);
 }
