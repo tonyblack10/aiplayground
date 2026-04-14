@@ -1,17 +1,15 @@
 package io.tonyblack10.aiplayground.config.security;
 
+import java.net.URI;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.crypto.factory.PasswordEncoderFactories;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.authentication.RedirectServerAuthenticationSuccessHandler;
 import org.springframework.security.web.server.authentication.logout.RedirectServerLogoutSuccessHandler;
-
-import java.net.URI;
 
 @Configuration
 @EnableWebFluxSecurity
@@ -19,7 +17,8 @@ import java.net.URI;
 public class SecurityConfig {
 
     @Bean
-    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
+    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http,
+                                                         AppAuthenticationManager authManager) {
         return http
                 // CSRF is disabled — this is a developer playground; enable and configure
                 // token propagation via HTMX headers before exposing to untrusted networks.
@@ -45,6 +44,8 @@ public class SecurityConfig {
 
                 .formLogin(form -> form
                         .loginPage("/login")
+                        .authenticationManager(authManager)
+                        .authenticationSuccessHandler(new RedirectServerAuthenticationSuccessHandler("/chat"))
                 )
 
                 .logout(logout -> {
@@ -54,10 +55,5 @@ public class SecurityConfig {
                 })
 
                 .build();
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
 }
