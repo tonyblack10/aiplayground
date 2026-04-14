@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head>
+<!--
+  HTMX base-URL configuration fragment.
+
+  Include in the <head> of every page that uses HTMX:
+    <th:block th:replace="~{fragments/htmx-config :: htmxConfig}"></th:block>
+
+  When app.frontend.base-url is empty (the default), no transformation is applied
+  and all HTMX requests use their original relative paths unchanged.
+  When a base URL is configured, it is prepended to every relative HTMX request
+  path via the htmx:configRequest lifecycle event.
+-->
+<script th:fragment="htmxConfig" th:inline="javascript">
+  (function () {
+    const baseUrl = /*[[${frontendBaseUrl}]]*/ '';
+    if (!baseUrl) return;
+
+    document.addEventListener('htmx:configRequest', function (evt) {
+      const path = evt.detail.path;
+      if (!path.startsWith('http://') && !path.startsWith('https://')) {
+        evt.detail.path = baseUrl + path;
+      }
+    });
+  })();
+</script>
+</head>
+<body></body>
+</html>

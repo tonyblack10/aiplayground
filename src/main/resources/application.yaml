@@ -22,6 +22,8 @@ spring:
     max-in-memory-size: 256MB
 
 app:
+  frontend:
+    base-url: ${APP_FRONTEND_BASE_URL:}
   user:
     accounts:
       user01: "{noop}pass01"
