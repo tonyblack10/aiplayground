@@ -13,10 +13,10 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -99,12 +99,12 @@ public class RagManagementController {
   @PostMapping("/{storeId}/documents/github")
   public Mono<String> importFromGitHub(
       @PathVariable String storeId,
-      @RequestParam(defaultValue = "https://github.com/tonyblack10/prompts-diversos.git") String repoUrl,
-      @RequestParam(defaultValue = "main") String branch,
-      @RequestParam(required = false) String folders,
+      @ModelAttribute GitHubImportForm form,
       Model model) {
-    List<String> folderList = (folders != null && !folders.isBlank())
-        ? Arrays.stream(folders.split("[\\r\\n,]+"))
+    String repoUrl = form.repoUrl() != null ? form.repoUrl() : "https://github.com/tonyblack10/prompts-diversos.git";
+    String branch = form.branch() != null && !form.branch().isBlank() ? form.branch() : "main";
+    List<String> folderList = (form.folders() != null && !form.folders().isBlank())
+        ? Arrays.stream(form.folders().split("[\\r\\n,]+"))
               .map(String::strip)
               .filter(s -> !s.isEmpty())
               .toList()
@@ -123,12 +123,11 @@ public class RagManagementController {
   @PostMapping("/{storeId}/documents/confluence")
   public Mono<String> importFromConfluence(
       @PathVariable String storeId,
-      @RequestParam(defaultValue = "~5570589115414629b149a9a6cc9c310018c84e") String spaceKey,
-      @RequestParam(required = false) String pageIds,
+      @ModelAttribute ConfluenceImportForm form,
       Model model) {
-    String key = spaceKey.strip().toUpperCase();
-    List<String> parsedPageIds = (pageIds != null && !pageIds.isBlank())
-        ? Arrays.stream(pageIds.split("[\\r\\n,]+"))
+    String key = (form.spaceKey() != null ? form.spaceKey() : "").strip().toUpperCase();
+    List<String> parsedPageIds = (form.pageIds() != null && !form.pageIds().isBlank())
+        ? Arrays.stream(form.pageIds().split("[\\r\\n,]+"))
               .map(String::strip)
               .filter(s -> !s.isEmpty())
               .toList()
@@ -149,9 +148,10 @@ public class RagManagementController {
   @PostMapping("/{storeId}/documents/monday")
   public Mono<String> importFromMonday(
       @PathVariable String storeId,
-      @RequestParam(defaultValue = "18390996096") String boardId,
+      @ModelAttribute MondayImportForm form,
       Model model) {
-    return managementService.importFromMonday(storeId, boardId.strip())
+    String boardId = form.boardId() != null ? form.boardId().strip() : "18390996096";
+    return managementService.importFromMonday(storeId, boardId)
         .doOnNext(result -> model.addAttribute("mondayResult", result))
         .thenReturn("rag/fragments/monday-import-result :: mondayImportFeedback")
         .onErrorResume(e -> {
@@ -164,11 +164,12 @@ public class RagManagementController {
   @PostMapping("/{storeId}/documents/s3")
   public Mono<String> importFromS3(
       @PathVariable String storeId,
-      @RequestParam String bucketName,
-      @RequestParam(defaultValue = "") String prefix,
-      @RequestParam List<String> fileFormats,
+      @ModelAttribute S3ImportForm form,
       Model model) {
-    return managementService.importFromS3(storeId, bucketName.strip(), prefix.strip(), fileFormats)
+    String bucketName = form.bucketName() != null ? form.bucketName().strip() : "";
+    String prefix = form.prefix() != null ? form.prefix().strip() : "";
+    List<String> fileFormats = form.fileFormats() != null ? form.fileFormats() : List.of();
+    return managementService.importFromS3(storeId, bucketName, prefix, fileFormats)
         .doOnNext(result -> model.addAttribute("s3Result", result))
         .thenReturn("rag/fragments/s3-import-result :: s3ImportFeedback")
         .onErrorResume(e -> {
@@ -181,8 +182,9 @@ public class RagManagementController {
   @PostMapping("/{storeId}/documents/delete")
   public Mono<String> deleteDocuments(
       @PathVariable String storeId,
-      @RequestParam List<String> ids,
+      @ModelAttribute DeleteDocumentsForm form,
       Model model) {
+    List<String> ids = form.ids() != null ? form.ids() : List.of();
     return managementService.deleteDocuments(storeId, ids)
         .doOnNext(docs -> {
           model.addAttribute("storeId", storeId);
@@ -200,11 +202,12 @@ public class RagManagementController {
   @GetMapping("/{storeId}/search/results")
   public Mono<String> searchResults(
       @PathVariable String storeId,
-      @RequestParam String query,
-      @RequestParam(defaultValue = "5") int topK,
-      @RequestParam(defaultValue = "0.0") double similarityThreshold,
-      @RequestParam(defaultValue = "") String filterExpression,
+      @ModelAttribute DocumentSearchForm form,
       Model model) {
+    String query = form.query() != null ? form.query() : "";
+    int topK = form.topK() != null ? form.topK() : 5;
+    double similarityThreshold = form.similarityThreshold() != null ? form.similarityThreshold() : 0.0;
+    String filterExpression = form.filterExpression() != null ? form.filterExpression() : "";
     return managementService.semanticSearch(storeId, query, topK, similarityThreshold, filterExpression)
         .doOnNext(results -> {
           model.addAttribute("storeId", storeId);
