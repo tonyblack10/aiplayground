@@ -28,7 +28,8 @@
           </svg>
           Chat
         </a>
-        <a href="/rag"
+        <a th:if="${hasAnyRagAccess}"
+           href="/rag"
            th:classappend="${activePage == 'rag'} ? ' bg-slate-700 text-white' : ' text-slate-300 hover:bg-slate-700 hover:text-white'"
            class="flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors duration-150">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

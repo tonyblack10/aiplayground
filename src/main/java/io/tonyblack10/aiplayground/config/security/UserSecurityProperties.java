@@ -17,15 +17,21 @@ import java.util.Map;
  *     accounts:
  *       user01: "{noop}pass01"
  *     permissions:
- *       CREATE_RAG:
+ *       # RAG_ACCESS_ALL grants unrestricted access to every store.
+ *       # RAG_ACCESS_{SUFFIX} grants access to a specific store.
+ *       # Store suffixes: SIMPLE (simpleVectorStore), PGVECTOR (pgVectorStore), REDIS (redisVectorStore).
+ *       # Users without any RAG_ACCESS_* authority cannot see or access the RAG section at all.
+ *       RAG_ACCESS_ALL:
  *         - user01
+ *       RAG_ACCESS_SIMPLE:
  *         - user02
- *       DELETE_RAG:
+ *       RAG_ACCESS_PGVECTOR:
+ *         - user02
+ *       RAG_ACCESS_REDIS:
  *         - user03
- *       # Roles listed here are granted to ALL authenticated users.
- *       # Their entry in the permissions map above is ignored.
- *       all:
- *         - CREATE_RAG
+ *       # Authorities listed here are granted to ALL authenticated users.
+ *       # If an authority appears here, its per-user mapping above is ignored.
+ *       all: []
  * </pre>
  */
 @ConfigurationProperties(prefix = "app.user")

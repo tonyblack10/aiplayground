@@ -3,7 +3,9 @@ package io.tonyblack10.aiplayground.chat.web;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.tonyblack10.aiplayground.chat.service.ChatService;
+import io.tonyblack10.aiplayground.config.security.RagAuthorityHelper;
 import io.tonyblack10.aiplayground.rag.service.VectorStoreRegistry;
+import org.springframework.security.core.Authentication;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,20 +39,23 @@ public class ChatController {
 
   private final ChatService chatService;
   private final VectorStoreRegistry vectorStoreRegistry;
+  private final RagAuthorityHelper ragAuthorityHelper;
   private final ObjectMapper objectMapper;
 
   public ChatController(ChatService chatService, VectorStoreRegistry vectorStoreRegistry,
-      ObjectMapper objectMapper) {
+      RagAuthorityHelper ragAuthorityHelper, ObjectMapper objectMapper) {
     this.chatService = chatService;
     this.vectorStoreRegistry = vectorStoreRegistry;
+    this.ragAuthorityHelper = ragAuthorityHelper;
     this.objectMapper = objectMapper;
   }
 
   @GetMapping
-  public Mono<String> index(Model model) {
+  public Mono<String> index(Model model, Authentication authentication) {
     return Mono.fromCallable(() -> {
       model.addAttribute("models", AVAILABLE_MODELS);
-      model.addAttribute("storeInfos", vectorStoreRegistry.getAllStoreInfos());
+      model.addAttribute("storeInfos",
+          ragAuthorityHelper.accessibleStores(authentication, vectorStoreRegistry.getAllStoreInfos()));
       return "chat/index";
     }).subscribeOn(Schedulers.boundedElastic());
   }

@@ -30,13 +30,19 @@ app:
       user02: "{noop}pass02"
       user03: "{noop}pass03"
     permissions:
-      CREATE_RAG:
+      # RAG_ACCESS_ALL grants unrestricted access to every store.
+      # RAG_ACCESS_{SUFFIX} grants access to a specific store.
+      # Store suffixes: SIMPLE, PGVECTOR, REDIS.
+      RAG_ACCESS_ALL:
         - user01
+      RAG_ACCESS_SIMPLE:
         - user02
-      DELETE_RAG:
+      RAG_ACCESS_PGVECTOR:
+        - user02
+      RAG_ACCESS_REDIS:
         - user03
-      # Roles listed here are granted to ALL users.
-      # If a role appears here, its entry in the permissions map above is ignored.
+      # Authorities listed here are granted to ALL authenticated users.
+      # If an authority appears here, its per-user mapping above is ignored.
       all: []
   github:
     token: ${GITHUB_TOKEN}

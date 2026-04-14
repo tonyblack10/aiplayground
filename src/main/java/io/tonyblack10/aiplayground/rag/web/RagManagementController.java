@@ -1,5 +1,7 @@
 package io.tonyblack10.aiplayground.rag.web;
 
+import io.tonyblack10.aiplayground.config.security.RagAuthorityHelper;
+import io.tonyblack10.aiplayground.config.security.RequiresRagAccess;
 import io.tonyblack10.aiplayground.rag.model.ConfluenceImportResult;
 import io.tonyblack10.aiplayground.rag.service.DocumentManagementService;
 import io.tonyblack10.aiplayground.rag.service.VectorStoreRegistry;
@@ -7,6 +9,8 @@ import jakarta.validation.Valid;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -31,21 +35,27 @@ public class RagManagementController {
   private static final Logger log = LoggerFactory.getLogger(RagManagementController.class);
   private final DocumentManagementService managementService;
   private final VectorStoreRegistry storeRegistry;
+  private final RagAuthorityHelper ragAuthorityHelper;
 
   public RagManagementController(DocumentManagementService managementService,
-      VectorStoreRegistry storeRegistry) {
+      VectorStoreRegistry storeRegistry,
+      RagAuthorityHelper ragAuthorityHelper) {
     this.managementService = managementService;
     this.storeRegistry = storeRegistry;
+    this.ragAuthorityHelper = ragAuthorityHelper;
   }
 
+  @PreAuthorize("@ragAuthorityHelper.hasAnyRagAccess(authentication)")
   @GetMapping
-  public Mono<String> index(Model model) {
+  public Mono<String> index(Model model, Authentication authentication) {
     return Mono.fromCallable(() -> {
-      model.addAttribute("storeInfos", storeRegistry.getAllStoreInfos());
+      model.addAttribute("storeInfos",
+          ragAuthorityHelper.accessibleStores(authentication, storeRegistry.getAllStoreInfos()));
       return "rag/index";
     }).subscribeOn(Schedulers.boundedElastic());
   }
 
+  @RequiresRagAccess
   @GetMapping("/{storeId}/view")
   public Mono<String> storeView(@PathVariable String storeId, Model model) {
     return managementService.listDocuments(storeId)
@@ -56,6 +66,7 @@ public class RagManagementController {
         .thenReturn("rag/fragments/store-view :: storeView");
   }
 
+  @RequiresRagAccess
   @GetMapping("/{storeId}/documents")
   public Mono<String> listDocuments(@PathVariable String storeId, Model model) {
     return managementService.listDocuments(storeId)
@@ -66,18 +77,25 @@ public class RagManagementController {
         .thenReturn("rag/fragments/document-list :: documentList");
   }
 
+  @RequiresRagAccess
   @GetMapping("/{storeId}/add")
-  public String addForm(@PathVariable String storeId, Model model) {
-    model.addAttribute("storeId", storeId);
-    return "rag/fragments/add-forms :: addForms";
+  public Mono<String> addForm(@PathVariable String storeId, Model model) {
+    return Mono.fromCallable(() -> {
+      model.addAttribute("storeId", storeId);
+      return "rag/fragments/add-forms :: addForms";
+    }).subscribeOn(Schedulers.boundedElastic());
   }
 
+  @RequiresRagAccess
   @GetMapping("/{storeId}/search")
-  public String searchPanel(@PathVariable String storeId, Model model) {
-    model.addAttribute("storeId", storeId);
-    return "rag/fragments/search-panel :: searchPanel";
+  public Mono<String> searchPanel(@PathVariable String storeId, Model model) {
+    return Mono.fromCallable(() -> {
+      model.addAttribute("storeId", storeId);
+      return "rag/fragments/search-panel :: searchPanel";
+    }).subscribeOn(Schedulers.boundedElastic());
   }
 
+  @RequiresRagAccess
   @PostMapping(value = "/{storeId}/documents/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public Mono<String> uploadFiles(
       @PathVariable String storeId,
@@ -98,6 +116,7 @@ public class RagManagementController {
         });
   }
 
+  @RequiresRagAccess
   @PostMapping("/{storeId}/documents/github")
   public Mono<String> importFromGitHub(
       @PathVariable String storeId,
@@ -125,6 +144,7 @@ public class RagManagementController {
         });
   }
 
+  @RequiresRagAccess
   @PostMapping("/{storeId}/documents/confluence")
   public Mono<String> importFromConfluence(
       @PathVariable String storeId,
@@ -155,6 +175,7 @@ public class RagManagementController {
         });
   }
 
+  @RequiresRagAccess
   @PostMapping("/{storeId}/documents/monday")
   public Mono<String> importFromMonday(
       @PathVariable String storeId,
@@ -175,6 +196,7 @@ public class RagManagementController {
         });
   }
 
+  @RequiresRagAccess
   @PostMapping("/{storeId}/documents/s3")
   public Mono<String> importFromS3(
       @PathVariable String storeId,
@@ -196,6 +218,7 @@ public class RagManagementController {
         });
   }
 
+  @RequiresRagAccess
   @PostMapping("/{storeId}/documents/delete")
   public Mono<String> deleteDocuments(
       @PathVariable String storeId,
@@ -221,6 +244,7 @@ public class RagManagementController {
         });
   }
 
+  @RequiresRagAccess
   @GetMapping("/{storeId}/search/results")
   public Mono<String> searchResults(
       @PathVariable String storeId,
