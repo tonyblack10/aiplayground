@@ -3,15 +3,17 @@ package io.tonyblack10.aiplayground.rag.web;
 import io.tonyblack10.aiplayground.rag.model.ConfluenceImportResult;
 import io.tonyblack10.aiplayground.rag.service.DocumentManagementService;
 import io.tonyblack10.aiplayground.rag.service.VectorStoreRegistry;
+import jakarta.validation.Valid;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -99,22 +101,25 @@ public class RagManagementController {
   @PostMapping("/{storeId}/documents/github")
   public Mono<String> importFromGitHub(
       @PathVariable String storeId,
-      @ModelAttribute GitHubImportForm form,
+      @Valid @ModelAttribute GitHubImportForm form,
+      BindingResult bindingResult,
       Model model) {
-    String repoUrl = form.repoUrl() != null ? form.repoUrl() : "https://github.com/tonyblack10/prompts-diversos.git";
-    String branch = form.branch() != null && !form.branch().isBlank() ? form.branch() : "main";
+    if (bindingResult.hasErrors()) {
+      model.addAttribute("errorMessage", formatValidationErrors(bindingResult));
+      return Mono.just("rag/fragments/github-import-result :: githubImportFeedback");
+    }
     List<String> folderList = (form.folders() != null && !form.folders().isBlank())
         ? Arrays.stream(form.folders().split("[\\r\\n,]+"))
               .map(String::strip)
               .filter(s -> !s.isEmpty())
               .toList()
         : List.of();
-    return managementService.importFromGitHub(storeId, repoUrl, branch, folderList)
+    return managementService.importFromGitHub(storeId, form.repoUrl(), form.branch(), folderList)
         .doOnNext(docs -> model.addAttribute("successMessage",
             "Importação concluída. " + docs.size() + " documento(s) adicionado(s) à store."))
         .thenReturn("rag/fragments/github-import-result :: githubImportFeedback")
         .onErrorResume(e -> {
-          log.error("GitHub import failed for repo {} (branch: {})", repoUrl, branch, e);
+          log.error("GitHub import failed for repo {} (branch: {})", form.repoUrl(), form.branch(), e);
           model.addAttribute("errorMessage", "Importação falhou: " + e.getMessage());
           return Mono.just("rag/fragments/github-import-result :: githubImportFeedback");
         });
@@ -123,9 +128,14 @@ public class RagManagementController {
   @PostMapping("/{storeId}/documents/confluence")
   public Mono<String> importFromConfluence(
       @PathVariable String storeId,
-      @ModelAttribute ConfluenceImportForm form,
+      @Valid @ModelAttribute ConfluenceImportForm form,
+      BindingResult bindingResult,
       Model model) {
-    String key = (form.spaceKey() != null ? form.spaceKey() : "").strip().toUpperCase();
+    if (bindingResult.hasErrors()) {
+      model.addAttribute("errorMessage", formatValidationErrors(bindingResult));
+      return Mono.just("rag/fragments/confluence-import-result :: confluenceImportFeedback");
+    }
+    String key = form.spaceKey().strip().toUpperCase();
     List<String> parsedPageIds = (form.pageIds() != null && !form.pageIds().isBlank())
         ? Arrays.stream(form.pageIds().split("[\\r\\n,]+"))
               .map(String::strip)
@@ -148,14 +158,18 @@ public class RagManagementController {
   @PostMapping("/{storeId}/documents/monday")
   public Mono<String> importFromMonday(
       @PathVariable String storeId,
-      @ModelAttribute MondayImportForm form,
+      @Valid @ModelAttribute MondayImportForm form,
+      BindingResult bindingResult,
       Model model) {
-    String boardId = form.boardId() != null ? form.boardId().strip() : "18390996096";
-    return managementService.importFromMonday(storeId, boardId)
+    if (bindingResult.hasErrors()) {
+      model.addAttribute("errorMessage", formatValidationErrors(bindingResult));
+      return Mono.just("rag/fragments/monday-import-result :: mondayImportFeedback");
+    }
+    return managementService.importFromMonday(storeId, form.boardId().strip())
         .doOnNext(result -> model.addAttribute("mondayResult", result))
         .thenReturn("rag/fragments/monday-import-result :: mondayImportFeedback")
         .onErrorResume(e -> {
-          log.error("Monday import failed for board {}", boardId, e);
+          log.error("Monday import failed for board {}", form.boardId(), e);
           model.addAttribute("errorMessage", "Importação falhou: " + e.getMessage());
           return Mono.just("rag/fragments/monday-import-result :: mondayImportFeedback");
         });
@@ -164,16 +178,19 @@ public class RagManagementController {
   @PostMapping("/{storeId}/documents/s3")
   public Mono<String> importFromS3(
       @PathVariable String storeId,
-      @ModelAttribute S3ImportForm form,
+      @Valid @ModelAttribute S3ImportForm form,
+      BindingResult bindingResult,
       Model model) {
-    String bucketName = form.bucketName() != null ? form.bucketName().strip() : "";
+    if (bindingResult.hasErrors()) {
+      model.addAttribute("errorMessage", formatValidationErrors(bindingResult));
+      return Mono.just("rag/fragments/s3-import-result :: s3ImportFeedback");
+    }
     String prefix = form.prefix() != null ? form.prefix().strip() : "";
-    List<String> fileFormats = form.fileFormats() != null ? form.fileFormats() : List.of();
-    return managementService.importFromS3(storeId, bucketName, prefix, fileFormats)
+    return managementService.importFromS3(storeId, form.bucketName().strip(), prefix, form.fileFormats())
         .doOnNext(result -> model.addAttribute("s3Result", result))
         .thenReturn("rag/fragments/s3-import-result :: s3ImportFeedback")
         .onErrorResume(e -> {
-          log.error("S3 import failed for bucket {}", bucketName, e);
+          log.error("S3 import failed for bucket {}", form.bucketName(), e);
           model.addAttribute("errorMessage", "Importação falhou: " + e.getMessage());
           return Mono.just("rag/fragments/s3-import-result :: s3ImportFeedback");
         });
@@ -182,14 +199,19 @@ public class RagManagementController {
   @PostMapping("/{storeId}/documents/delete")
   public Mono<String> deleteDocuments(
       @PathVariable String storeId,
-      @ModelAttribute DeleteDocumentsForm form,
+      @Valid @ModelAttribute DeleteDocumentsForm form,
+      BindingResult bindingResult,
       Model model) {
-    List<String> ids = form.ids() != null ? form.ids() : List.of();
-    return managementService.deleteDocuments(storeId, ids)
+    if (bindingResult.hasErrors()) {
+      model.addAttribute("storeId", storeId);
+      model.addAttribute("errorMessage", formatValidationErrors(bindingResult));
+      return Mono.just("rag/fragments/feedback :: feedback");
+    }
+    return managementService.deleteDocuments(storeId, form.ids())
         .doOnNext(docs -> {
           model.addAttribute("storeId", storeId);
           model.addAttribute("documents", docs);
-          model.addAttribute("successMessage", ids.size() + " document(s) deleted.");
+          model.addAttribute("successMessage", form.ids().size() + " document(s) deleted.");
         })
         .thenReturn("rag/fragments/document-list :: documentList")
         .onErrorResume(e -> {
@@ -202,22 +224,32 @@ public class RagManagementController {
   @GetMapping("/{storeId}/search/results")
   public Mono<String> searchResults(
       @PathVariable String storeId,
-      @ModelAttribute DocumentSearchForm form,
+      @Valid @ModelAttribute DocumentSearchForm form,
+      BindingResult bindingResult,
       Model model) {
-    String query = form.query() != null ? form.query() : "";
+    if (bindingResult.hasErrors()) {
+      model.addAttribute("errorMessage", formatValidationErrors(bindingResult));
+      return Mono.just("rag/fragments/search-results :: searchResults");
+    }
     int topK = form.topK() != null ? form.topK() : 5;
     double similarityThreshold = form.similarityThreshold() != null ? form.similarityThreshold() : 0.0;
     String filterExpression = form.filterExpression() != null ? form.filterExpression() : "";
-    return managementService.semanticSearch(storeId, query, topK, similarityThreshold, filterExpression)
+    return managementService.semanticSearch(storeId, form.query(), topK, similarityThreshold, filterExpression)
         .doOnNext(results -> {
           model.addAttribute("storeId", storeId);
           model.addAttribute("searchResults", results);
-          model.addAttribute("query", query);
+          model.addAttribute("query", form.query());
         })
         .thenReturn("rag/fragments/search-results :: searchResults")
         .onErrorResume(e -> {
           model.addAttribute("errorMessage", "Search failed: " + e.getMessage());
           return Mono.just("rag/fragments/feedback :: feedback");
         });
+  }
+
+  private String formatValidationErrors(BindingResult bindingResult) {
+    return bindingResult.getFieldErrors().stream()
+        .map(fe -> fe.getDefaultMessage())
+        .collect(Collectors.joining("; "));
   }
 }
