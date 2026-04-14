@@ -134,8 +134,8 @@ public class DocumentManagementService {
     }).subscribeOn(Schedulers.boundedElastic());
   }
 
-  public Mono<MondayImportResult> importFromMonday(String storeId, String boardId, String groupId, List<String> fields) {
-    return mondayImportService.importFromBoard(boardId, groupId, fields)
+  public Mono<MondayImportResult> importFromMonday(String storeId, String boardId) {
+    return mondayImportService.importFromBoard(boardId)
         .flatMap(result -> Mono.fromCallable(() -> {
 //          if (!result.documents().isEmpty()) {
 //            VectorStore store = vectorStoreRegistry.getStore(storeId);

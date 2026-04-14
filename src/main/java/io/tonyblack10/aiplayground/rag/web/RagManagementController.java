@@ -150,12 +150,8 @@ public class RagManagementController {
   public Mono<String> importFromMonday(
       @PathVariable String storeId,
       @RequestParam(defaultValue = "18390996096") String boardId,
-      @RequestParam(defaultValue = "") String groupId,
-      @RequestParam(defaultValue = "") String fields,
       Model model) {
-    List<String> fieldList = fields.isBlank() ? List.of()
-        : Arrays.stream(fields.split(",")).map(String::trim).filter(s -> !s.isBlank()).toList();
-    return managementService.importFromMonday(storeId, boardId.strip(), groupId.strip(), fieldList)
+    return managementService.importFromMonday(storeId, boardId.strip())
         .doOnNext(result -> model.addAttribute("mondayResult", result))
         .thenReturn("rag/fragments/monday-import-result :: mondayImportFeedback")
         .onErrorResume(e -> {

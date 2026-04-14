@@ -48,17 +48,17 @@ public class MondayImportService {
         .build();
   }
 
-  public Mono<MondayImportResult> importFromBoard(String boardId, String groupId, List<String> fields) {
+  public Mono<MondayImportResult> importFromBoard(String boardId) {
     if (apiToken.isBlank()) {
       return Mono.error(new IllegalStateException(
           "Monday.com não está configurado. Defina MONDAY_API_TOKEN nas propriedades da aplicação."));
     }
-    return fetchAllItems(boardId, groupId)
+    return fetchAllItems(boardId)
         .collectList()
-        .flatMap(items -> processItems(items, boardId, fields));
+        .flatMap(items -> processItems(items, boardId));
   }
 
-  private Flux<ItemResult> fetchAllItems(String boardId, String groupId) {
+  private Flux<ItemResult> fetchAllItems(String boardId) {
     return fetchItemsPage(boardId, null)
         .expand(page -> {
           if (page.cursor() == null || page.cursor().isBlank()) {
@@ -66,15 +66,7 @@ public class MondayImportService {
           }
           return Mono.delay(REQUEST_DELAY).then(fetchItemsPage(boardId, page.cursor()));
         })
-        .flatMapIterable(page -> {
-          List<ItemResult> items = page.items() != null ? page.items() : List.of();
-          if (groupId != null && !groupId.isBlank()) {
-            return items.stream()
-                .filter(item -> item.group() != null && groupId.equals(item.group().id()))
-                .toList();
-          }
-          return items;
-        });
+        .flatMapIterable(page -> page.items() != null ? page.items() : List.of());
   }
 
   private Mono<ItemsPage> fetchItemsPage(String boardId, String cursor) {
@@ -121,12 +113,12 @@ public class MondayImportService {
         .retryWhen(buildRetry(context));
   }
 
-  private Mono<MondayImportResult> processItems(List<ItemResult> items, String boardId, List<String> fields) {
+  private Mono<MondayImportResult> processItems(List<ItemResult> items, String boardId) {
     log.info("Processing {} items from board '{}'", items.size(), boardId);
     return Mono.fromCallable(() -> {
       List<ItemOutcome> outcomes = items.stream().map(item -> {
         try {
-          return new ItemOutcome(buildDocument(item, boardId, fields), null);
+          return new ItemOutcome(buildDocument(item, boardId), null);
         } catch (Exception e) {
           log.warn("Failed to process item {}: {}", item.id(), e.getMessage());
           return new ItemOutcome(null, "Item " + item.id() + " (" + item.name() + "): " + e.getMessage());
@@ -154,7 +146,7 @@ public class MondayImportService {
     }).subscribeOn(Schedulers.boundedElastic());
   }
 
-  private Document buildDocument(ItemResult item, String boardId, List<String> fields) {
+  private Document buildDocument(ItemResult item, String boardId) {
     StringBuilder sb = new StringBuilder();
     sb.append("Item: ").append(item.name() != null ? item.name() : "").append("\n");
 
@@ -165,7 +157,6 @@ public class MondayImportService {
     if (item.columnValues() != null) {
       for (ColumnValue cv : item.columnValues()) {
         if (cv.text() == null || cv.text().isBlank()) continue;
-        if (!fields.isEmpty() && !isFieldIncluded(cv, fields)) continue;
         String label = (cv.column() != null && cv.column().title() != null) ? cv.column().title() : cv.id();
         sb.append(label).append(": ").append(cv.text()).append("\n");
       }
@@ -184,12 +175,6 @@ public class MondayImportService {
         "groupId", item.group() != null && item.group().id() != null ? item.group().id() : "",
         "groupTitle", item.group() != null && item.group().title() != null ? item.group().title() : ""
     ));
-  }
-
-  private boolean isFieldIncluded(ColumnValue cv, List<String> fields) {
-    String columnTitle = cv.column() != null ? cv.column().title() : null;
-    return fields.stream().anyMatch(f ->
-        f.equalsIgnoreCase(cv.id()) || (columnTitle != null && f.equalsIgnoreCase(columnTitle)));
   }
 
   private Retry buildRetry(String context) {
