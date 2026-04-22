@@ -2,12 +2,15 @@ package io.tonyblack10.aiplayground.rag.service;
 
 import io.tonyblack10.aiplayground.rag.model.ConfluenceImportResult;
 import io.tonyblack10.aiplayground.rag.model.DocumentEntry;
+import io.tonyblack10.aiplayground.rag.model.DocumentImportRecord;
 import io.tonyblack10.aiplayground.rag.model.FileUploadResult;
 import io.tonyblack10.aiplayground.rag.model.MondayImportResult;
 import io.tonyblack10.aiplayground.rag.model.S3ImportResult;
 import io.tonyblack10.aiplayground.rag.registry.DocumentRegistry;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -28,6 +31,7 @@ public class DocumentManagementService {
   private final ConfluenceImportService confluenceImportService;
   private final MondayImportService mondayImportService;
   private final S3ImportService s3ImportService;
+  private final ImportRecordS3Repository importRecordRepository;
 
   public DocumentManagementService(
       VectorStoreRegistry vectorStoreRegistry,
@@ -36,7 +40,8 @@ public class DocumentManagementService {
       GitHubImporter gitHubImportService,
       ConfluenceImportService confluenceImportService,
       MondayImportService mondayImportService,
-      S3ImportService s3ImportService) {
+      S3ImportService s3ImportService,
+      ImportRecordS3Repository importRecordRepository) {
     this.vectorStoreRegistry = vectorStoreRegistry;
     this.documentRegistry = documentRegistry;
     this.parserService = parserService;
@@ -44,6 +49,7 @@ public class DocumentManagementService {
     this.confluenceImportService = confluenceImportService;
     this.mondayImportService = mondayImportService;
     this.s3ImportService = s3ImportService;
+    this.importRecordRepository = importRecordRepository;
   }
 
   public Mono<List<DocumentEntry>> listDocuments(String storeId) {
@@ -96,7 +102,8 @@ public class DocumentManagementService {
         }).subscribeOn(Schedulers.boundedElastic()));
   }
 
-  public Mono<List<DocumentEntry>> importFromGitHub(String storeId, String repoUrl, String branch, List<String> folders) {
+  public Mono<List<DocumentEntry>> importFromGitHub(
+      String storeId, String repoUrl, String branch, List<String> folders, String importedBy) {
     return gitHubImportService.importFromGitHub(repoUrl, branch, folders)
         .flatMap(docs -> Mono.fromCallable(() -> {
           VectorStore store = vectorStoreRegistry.getStore(storeId);
@@ -104,27 +111,59 @@ public class DocumentManagementService {
             store.add(docs);
             documentRegistry.register(storeId, docs);
           }
+          importRecordRepository.save(new DocumentImportRecord(
+              UUID.randomUUID().toString(),
+              extractRepoName(repoUrl),
+              Instant.now(),
+              "github",
+              importedBy,
+              storeId,
+              Map.of(
+                  "repoUrl", repoUrl,
+                  "branch", branch,
+                  "folders", String.join(",", folders)
+              )
+          ));
           return documentRegistry.getDocuments(storeId);
         }).subscribeOn(Schedulers.boundedElastic()));
   }
 
-  public Mono<ConfluenceImportResult> importFromConfluence(String storeId, String spaceKey) {
+  public Mono<ConfluenceImportResult> importFromConfluence(String storeId, String spaceKey, String importedBy) {
     return confluenceImportService.importFromSpace(spaceKey)
-        .flatMap(result -> storeConfluenceResult(storeId, result));
+        .flatMap(result -> storeConfluenceResult(storeId, result, new DocumentImportRecord(
+            UUID.randomUUID().toString(),
+            "Space: " + spaceKey,
+            Instant.now(),
+            "confluence",
+            importedBy,
+            storeId,
+            Map.of("spaceKey", spaceKey)
+        )));
   }
 
-  public Mono<ConfluenceImportResult> importFromConfluencePages(String storeId, String spaceKey, List<String> pageIds) {
+  public Mono<ConfluenceImportResult> importFromConfluencePages(
+      String storeId, String spaceKey, List<String> pageIds, String importedBy) {
     return confluenceImportService.importSpecificPages(spaceKey, pageIds)
-        .flatMap(result -> storeConfluenceResult(storeId, result));
+        .flatMap(result -> storeConfluenceResult(storeId, result, new DocumentImportRecord(
+            UUID.randomUUID().toString(),
+            "Space: " + spaceKey + " (" + pageIds.size() + " page(s))",
+            Instant.now(),
+            "confluence",
+            importedBy,
+            storeId,
+            Map.of("spaceKey", spaceKey, "pageIds", String.join(",", pageIds))
+        )));
   }
 
-  private Mono<ConfluenceImportResult> storeConfluenceResult(String storeId, ConfluenceImportResult result) {
+  private Mono<ConfluenceImportResult> storeConfluenceResult(
+      String storeId, ConfluenceImportResult result, DocumentImportRecord record) {
     return Mono.fromCallable(() -> {
       if (!result.documents().isEmpty()) {
         VectorStore store = vectorStoreRegistry.getStore(storeId);
         store.add(result.documents());
         documentRegistry.register(storeId, result.documents());
       }
+      importRecordRepository.save(record);
       return new ConfluenceImportResult(
           result.pagesProcessed(),
           result.pagesIngested(),
@@ -134,14 +173,23 @@ public class DocumentManagementService {
     }).subscribeOn(Schedulers.boundedElastic());
   }
 
-  public Mono<MondayImportResult> importFromMonday(String storeId, String boardId) {
+  public Mono<MondayImportResult> importFromMonday(String storeId, String boardId, String importedBy) {
     return mondayImportService.importFromBoard(boardId)
         .flatMap(result -> Mono.fromCallable(() -> {
-//          if (!result.documents().isEmpty()) {
-//            VectorStore store = vectorStoreRegistry.getStore(storeId);
-//            store.add(result.documents());
-//            documentRegistry.register(storeId, result.documents());
-//          }
+          if (!result.documents().isEmpty()) {
+            VectorStore store = vectorStoreRegistry.getStore(storeId);
+            store.add(result.documents());
+            documentRegistry.register(storeId, result.documents());
+          }
+          importRecordRepository.save(new DocumentImportRecord(
+              UUID.randomUUID().toString(),
+              "Monday Board: " + boardId,
+              Instant.now(),
+              "monday",
+              importedBy,
+              storeId,
+              Map.of("boardId", boardId)
+          ));
           return new MondayImportResult(
               result.itemsProcessed(),
               result.itemsIngested(),
@@ -151,7 +199,8 @@ public class DocumentManagementService {
         }).subscribeOn(Schedulers.boundedElastic()));
   }
 
-  public Mono<S3ImportResult> importFromS3(String storeId, String bucketName, String prefix, List<String> extensions) {
+  public Mono<S3ImportResult> importFromS3(
+      String storeId, String bucketName, String prefix, List<String> extensions, String importedBy) {
     return s3ImportService.importFromBucket(bucketName, prefix, extensions)
         .flatMap(result -> Mono.fromCallable(() -> {
           if (!result.documents().isEmpty()) {
@@ -159,6 +208,19 @@ public class DocumentManagementService {
             store.add(result.documents());
             documentRegistry.register(storeId, result.documents());
           }
+          importRecordRepository.save(new DocumentImportRecord(
+              UUID.randomUUID().toString(),
+              "s3://" + bucketName + (prefix.isBlank() ? "" : "/" + prefix),
+              Instant.now(),
+              "s3",
+              importedBy,
+              storeId,
+              Map.of(
+                  "bucket", bucketName,
+                  "prefix", prefix,
+                  "extensions", String.join(",", extensions)
+              )
+          ));
           return new S3ImportResult(
               result.filesProcessed(),
               result.filesIngested(),
@@ -191,5 +253,13 @@ public class DocumentManagementService {
       }
       return store.similaritySearch(builder.build());
     }).subscribeOn(Schedulers.boundedElastic());
+  }
+
+  private String extractRepoName(String repoUrl) {
+    String normalized = repoUrl.trim().replaceAll("/$", "").replace(".git", "");
+    int lastSlash = normalized.lastIndexOf('/');
+    int lastColon = normalized.lastIndexOf(':');
+    int start = Math.max(lastSlash, lastColon);
+    return start >= 0 ? normalized.substring(start + 1) : normalized;
   }
 }

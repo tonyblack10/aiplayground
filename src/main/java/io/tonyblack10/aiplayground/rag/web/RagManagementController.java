@@ -122,6 +122,7 @@ public class RagManagementController {
       @PathVariable String storeId,
       @Valid @ModelAttribute GitHubImportForm form,
       BindingResult bindingResult,
+      Authentication authentication,
       Model model) {
     if (bindingResult.hasErrors()) {
       model.addAttribute("errorMessage", formatValidationErrors(bindingResult));
@@ -133,7 +134,7 @@ public class RagManagementController {
               .filter(s -> !s.isEmpty())
               .toList()
         : List.of();
-    return managementService.importFromGitHub(storeId, form.repoUrl(), form.branch(), folderList)
+    return managementService.importFromGitHub(storeId, form.repoUrl(), form.branch(), folderList, authentication.getName())
         .doOnNext(docs -> model.addAttribute("successMessage",
             "Importação concluída. " + docs.size() + " documento(s) adicionado(s) à store."))
         .thenReturn("rag/fragments/github-import-result :: githubImportFeedback")
@@ -150,6 +151,7 @@ public class RagManagementController {
       @PathVariable String storeId,
       @Valid @ModelAttribute ConfluenceImportForm form,
       BindingResult bindingResult,
+      Authentication authentication,
       Model model) {
     if (bindingResult.hasErrors()) {
       model.addAttribute("errorMessage", formatValidationErrors(bindingResult));
@@ -163,8 +165,8 @@ public class RagManagementController {
               .toList()
         : List.of();
     Mono<ConfluenceImportResult> importMono = !parsedPageIds.isEmpty()
-        ? managementService.importFromConfluencePages(storeId, key, parsedPageIds)
-        : managementService.importFromConfluence(storeId, key);
+        ? managementService.importFromConfluencePages(storeId, key, parsedPageIds, authentication.getName())
+        : managementService.importFromConfluence(storeId, key, authentication.getName());
     return importMono
         .doOnNext(result -> model.addAttribute("confluenceResult", result))
         .thenReturn("rag/fragments/confluence-import-result :: confluenceImportFeedback")
@@ -181,12 +183,13 @@ public class RagManagementController {
       @PathVariable String storeId,
       @Valid @ModelAttribute MondayImportForm form,
       BindingResult bindingResult,
+      Authentication authentication,
       Model model) {
     if (bindingResult.hasErrors()) {
       model.addAttribute("errorMessage", formatValidationErrors(bindingResult));
       return Mono.just("rag/fragments/monday-import-result :: mondayImportFeedback");
     }
-    return managementService.importFromMonday(storeId, form.boardId().strip())
+    return managementService.importFromMonday(storeId, form.boardId().strip(), authentication.getName())
         .doOnNext(result -> model.addAttribute("mondayResult", result))
         .thenReturn("rag/fragments/monday-import-result :: mondayImportFeedback")
         .onErrorResume(e -> {
@@ -202,13 +205,14 @@ public class RagManagementController {
       @PathVariable String storeId,
       @Valid @ModelAttribute S3ImportForm form,
       BindingResult bindingResult,
+      Authentication authentication,
       Model model) {
     if (bindingResult.hasErrors()) {
       model.addAttribute("errorMessage", formatValidationErrors(bindingResult));
       return Mono.just("rag/fragments/s3-import-result :: s3ImportFeedback");
     }
     String prefix = form.prefix() != null ? form.prefix().strip() : "";
-    return managementService.importFromS3(storeId, form.bucketName().strip(), prefix, form.fileFormats())
+    return managementService.importFromS3(storeId, form.bucketName().strip(), prefix, form.fileFormats(), authentication.getName())
         .doOnNext(result -> model.addAttribute("s3Result", result))
         .thenReturn("rag/fragments/s3-import-result :: s3ImportFeedback")
         .onErrorResume(e -> {

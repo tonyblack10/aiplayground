@@ -59,6 +59,8 @@ app:
     access-key-id: ${AWS_ACCESS_KEY_ID:}
     secret-access-key: ${AWS_SECRET_ACCESS_KEY:}
     endpoint: ${AWS_S3_ENDPOINT:}
+    records-bucket: ${AWS_S3_RECORDS_BUCKET:}
+    records-prefix: ${AWS_S3_RECORDS_PREFIX:rag-records}
 
 # add trace logging for webclient to help debug issues with external API calls
 logging:
