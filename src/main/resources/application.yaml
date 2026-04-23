@@ -10,6 +10,12 @@ spring:
       chat:
         options:
           model: gpt-4o-mini
+    mcp:
+      server:
+        name: aiplayground-mcp-server
+        version: 1.0.0
+        type: ASYNC
+        protocol: STATELESS
 
   autoconfigure:
     exclude:

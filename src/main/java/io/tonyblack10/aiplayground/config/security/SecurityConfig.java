@@ -28,6 +28,8 @@ public class SecurityConfig {
                 .authorizeExchange(auth -> auth
                         // Public endpoints
                         .pathMatchers("/login").permitAll()
+                        // MCP server endpoint — accessible to programmatic clients
+                        .pathMatchers("/mcp/**").permitAll()
 
                         // Per-RAG-store access is enforced at the method level via @RequiresRagAccess
                         .anyExchange().authenticated()
