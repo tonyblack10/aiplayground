@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>API Token – Spring AI Playground</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <th:block th:replace="~{fragments/htmx-config :: htmxConfig}"></th:block>
+</head>
+<body class="bg-slate-50 flex flex-col h-screen font-sans antialiased">
+
+<div th:replace="~{fragments/navbar :: navbar('api-token')}"></div>
+
+<!-- Pass server-side values to JS via data attributes -->
+<span id="mcpUrl" th:attr="data-url=${mcpServerUrl}" class="hidden"></span>
+
+<main class="flex-1 overflow-y-auto py-12 px-4">
+  <div class="max-w-2xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div>
+      <h1 class="text-2xl font-bold text-slate-800">API Token (MCP)</h1>
+      <p class="text-slate-500 mt-1 text-sm">
+        Gere um JWT para autenticar clientes externos nos endpoints <code class="bg-slate-100 px-1.5 py-0.5 rounded text-xs font-mono">/mcp/**</code>.
+      </p>
+    </div>
+
+    <!-- User info card -->
+    <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+      <div>
+        <p class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Usuário</p>
+        <p class="text-slate-800 font-medium font-mono" th:text="${username}">user</p>
+      </div>
+      <div>
+        <p class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Permissões da conta</p>
+        <div class="flex flex-wrap gap-2">
+          <span th:each="auth : ${authorities}"
+                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100"
+                th:text="${auth.authority}">ROLE</span>
+          <span th:if="${#lists.isEmpty(authorities)}" class="text-sm text-slate-400 italic">Nenhuma permissão</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Generate button -->
+    <button id="generateBtn" onclick="generateToken()"
+            class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-medium
+                   rounded-2xl px-6 py-3 transition-all duration-150 shadow-sm flex items-center justify-center gap-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+      </svg>
+      Gerar Token JWT
+    </button>
+
+    <!-- Result (hidden until generated) -->
+    <div id="tokenResult" class="hidden bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-5">
+
+      <!-- Raw JWT -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Token JWT</p>
+          <button onclick="copyToken()"
+                  class="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-medium transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>
+            <span id="copyTokenLabel">Copiar</span>
+          </button>
+        </div>
+        <textarea id="tokenValue" readonly rows="3"
+                  class="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3
+                         text-xs font-mono text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"></textarea>
+      </div>
+
+      <hr class="border-slate-100"/>
+
+      <!-- MCP client config JSON -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Configuração do cliente MCP</p>
+          <button onclick="copyMcpConfig()"
+                  class="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-medium transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>
+            <span id="copyJsonLabel">Copiar JSON</span>
+          </button>
+        </div>
+        <pre id="mcpConfigJson"
+             class="rounded-xl border border-slate-200 bg-slate-950 text-slate-100 px-4 py-4
+                    text-xs font-mono overflow-x-auto whitespace-pre leading-relaxed"></pre>
+      </div>
+
+    </div>
+
+    <!-- Error -->
+    <div id="tokenError" class="hidden bg-red-50 border border-red-200 rounded-2xl px-6 py-4">
+      <p class="text-sm text-red-600" id="tokenErrorMsg">Erro ao gerar token.</p>
+    </div>
+
+  </div>
+</main>
+
+<script>
+  const MCP_URL = document.getElementById('mcpUrl').dataset.url;
+
+  const BTN_ICON = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+  </svg>`;
+
+  async function generateToken() {
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    btn.innerHTML = `<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+    </svg> Gerando...`;
+
+    document.getElementById('tokenResult').classList.add('hidden');
+    document.getElementById('tokenError').classList.add('hidden');
+
+    try {
+      const resp = await fetch('/api-token/generate', { method: 'POST' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const { token } = await resp.json();
+
+      document.getElementById('tokenValue').value = token;
+      document.getElementById('mcpConfigJson').textContent = buildMcpConfigJson(token);
+      document.getElementById('tokenResult').classList.remove('hidden');
+      document.getElementById('copyTokenLabel').textContent = 'Copiar';
+      document.getElementById('copyJsonLabel').textContent = 'Copiar JSON';
+    } catch (err) {
+      document.getElementById('tokenErrorMsg').textContent = 'Erro ao gerar token: ' + err.message;
+      document.getElementById('tokenError').classList.remove('hidden');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = BTN_ICON + ' Gerar Token JWT';
+    }
+  }
+
+  function buildMcpConfigJson(token) {
+    const cfg = {
+      "url": MCP_URL,
+      "headers": {
+        "Authorization": "Bearer " + token
+      }
+    };
+    return `"aiplayground-rag": ${JSON.stringify(cfg, null, 2)}`;
+  }
+
+  function copyToken() {
+    const val = document.getElementById('tokenValue').value;
+    if (!val) return;
+    navigator.clipboard.writeText(val).then(() => flash('copyTokenLabel', 'Copiado!', 'Copiar'));
+  }
+
+  function copyMcpConfig() {
+    const val = document.getElementById('mcpConfigJson').textContent;
+    if (!val) return;
+    navigator.clipboard.writeText(val).then(() => flash('copyJsonLabel', 'Copiado!', 'Copiar JSON'));
+  }
+
+  function flash(id, active, reset) {
+    const el = document.getElementById(id);
+    el.textContent = active;
+    setTimeout(() => el.textContent = reset, 2000);
+  }
+</script>
+
+</body>
+</html>

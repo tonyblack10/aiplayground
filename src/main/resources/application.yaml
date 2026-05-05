@@ -26,6 +26,9 @@ spring:
       max-request-size: 256MB
   codec:
     max-in-memory-size: 256MB
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: false
 
 app:
   frontend:
@@ -50,6 +53,10 @@ app:
       # Authorities listed here are granted to ALL authenticated users.
       # If an authority appears here, its per-user mapping above is ignored.
       all: []
+  jwt:
+    secret: ${JWT_SECRET:aiplayground-dev-secret-key-must-be-at-least-32-bytes!}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+    issuer: ${JWT_ISSUER:aiplayground}
   github:
     token: ${GITHUB_TOKEN}
     clone-dir: /tmp/github-clones

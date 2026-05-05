@@ -5,13 +5,18 @@ import io.tonyblack10.aiplayground.rag.service.DocumentManagementService;
 import io.tonyblack10.aiplayground.rag.service.VectorStoreRegistry;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 @Service
 public class RagSearchMcpTools {
+
+  private static final Logger log = LoggerFactory.getLogger(RagSearchMcpTools.class);
 
   private final DocumentManagementService documentManagementService;
 
@@ -32,8 +37,13 @@ public class RagSearchMcpTools {
     int k = topK != null ? Math.clamp(topK, 1, 20) : 5;
     double threshold = similarityThreshold != null ? similarityThreshold : 0.0;
 
-    return documentManagementService
-        .semanticSearch(storeId, query, k, threshold, filterExpression)
+    return ReactiveSecurityContextHolder.getContext()
+        .doOnNext(ctx -> {
+          var auth = ctx.getAuthentication();
+          log.info("MCP tool invoked: searchRagDocuments | user='{}' authorities={} | store='{}' query='{}'",
+              auth.getName(), auth.getAuthorities(), storeId, query);
+        })
+        .then(documentManagementService.semanticSearch(storeId, query, k, threshold, filterExpression))
         .map(docs -> docs.stream().map(SearchResult::from).toList())
         .block();
   }
