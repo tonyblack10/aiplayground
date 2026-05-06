@@ -20,6 +20,7 @@ spring:
   autoconfigure:
     exclude:
       - org.springframework.ai.vectorstore.pgvector.autoconfigure.PgVectorStoreAutoConfiguration
+      - org.springframework.ai.mcp.server.common.autoconfigure.McpServerStatelessAutoConfiguration
   webflux:
     multipart:
       max-file-size: 256MB
