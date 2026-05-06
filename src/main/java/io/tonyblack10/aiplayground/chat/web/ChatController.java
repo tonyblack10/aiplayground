@@ -68,13 +68,14 @@ public class ChatController {
       @RequestParam(defaultValue = "0.7") double temperature,
       @RequestParam(defaultValue = "false") boolean useRag,
       @RequestParam(defaultValue = "") String storeId,
+      Authentication authentication,
       WebSession session) {
 
     String conversationId = session.getId();
     log.debug("Streaming chat for session {} with model {} (useRag={}, store={})",
         conversationId, model, useRag, storeId);
 
-    return chatService.stream(message, conversationId, model, temperature, useRag, storeId)
+    return chatService.stream(message, conversationId, model, temperature, useRag, storeId, authentication)
         .map(token -> {
           try {
             // JSON-encode the token so the SSE spec does not strip leading spaces

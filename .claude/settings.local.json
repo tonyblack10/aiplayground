@@ -27,7 +27,18 @@
       "Bash(xargs cat *)",
       "Bash(grep -A 40 'lambda$asyncInitializeRequestHandler$1\\\\|lambda$asyncInitializeRequestHandler$0')",
       "Bash(mvn dependency:get -Dartifact=org.springframework.ai:spring-ai-starter-mcp-server-webflux:1.1.5 -q)",
-      "Read(//tmp/org/springframework/ai/mcp/server/common/autoconfigure/**)"
+      "Read(//tmp/org/springframework/ai/mcp/server/common/autoconfigure/**)",
+      "Bash(Get-ChildItem -Path \"src\\\\main\\\\java\\\\io\\\\tonyblack10\\\\aiplayground\\\\config\\\\security\" -Name)",
+      "Bash(xargs grep -E \"\\(spring-ai|mcp\\)\")",
+      "Bash(jar -tf /c/Users/tonyb/.m2/repository/org/springframework/ai/spring-ai-mcp/1.1.5/spring-ai-mcp-1.1.5.jar)",
+      "Bash(jar -tf /c/Users/tonyb/.m2/repository/org/springframework/ai/spring-ai-autoconfigure-mcp-server-common/1.1.5/spring-ai-autoconfigure-mcp-server-common-1.1.5.jar)",
+      "Bash(jar -xf /c/Users/tonyb/.m2/repository/org/springframework/ai/spring-ai-autoconfigure-mcp-server-common/1.1.5/spring-ai-autoconfigure-mcp-server-common-1.1.5-sources.jar \"org/springframework/ai/mcp/server/common/autoconfigure/StatelessToolCallbackConverterAutoConfiguration.java\")",
+      "Bash(jar -xf /c/Users/tonyb/.m2/repository/org/springframework/ai/spring-ai-mcp/1.1.5/spring-ai-mcp-1.1.5-sources.jar \"org/springframework/ai/mcp/McpToolUtils.java\")",
+      "Bash(jar -tf /c/Users/tonyb/.m2/repository/io/modelcontextprotocol/sdk/mcp/0.10.0/mcp-0.10.0.jar)",
+      "Bash(jar -tf /c/Users/tonyb/.m2/repository/io/modelcontextprotocol/sdk/mcp/0.17.0/mcp-0.17.0.jar)",
+      "Bash(jar -tf /c/Users/tonyb/.m2/repository/io/modelcontextprotocol/sdk/mcp-core/0.17.0/mcp-core-0.17.0.jar)",
+      "Bash(jar -xf /c/Users/tonyb/.m2/repository/io/modelcontextprotocol/sdk/mcp-core/0.17.0/mcp-core-0.17.0-sources.jar \"io/modelcontextprotocol/server/McpStatelessServerFeatures.java\")",
+      "Bash(jar -xf /c/Users/tonyb/.m2/repository/io/modelcontextprotocol/sdk/mcp-core/0.17.0/mcp-core-0.17.0-sources.jar \"io/modelcontextprotocol/spec/McpSchema.java\")"
     ]
   }
 }

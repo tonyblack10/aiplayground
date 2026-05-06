@@ -1,9 +1,12 @@
 package io.tonyblack10.aiplayground.chat.service;
 
+import io.tonyblack10.aiplayground.chat.service.tools.UserToolContext;
 import io.tonyblack10.aiplayground.rag.service.VectorStoreRegistry;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.security.core.Authentication;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
@@ -38,7 +41,7 @@ public class ChatService {
   }
 
   public Flux<String> stream(String message, String conversationId, String model,
-      double temperature, boolean useRag, String storeId) {
+      double temperature, boolean useRag, String storeId, Authentication authentication) {
 
     var chatMemory = MessageWindowChatMemory.builder()
         .chatMemoryRepository(chatMemoryRepository)
@@ -54,6 +57,11 @@ public class ChatService {
       advisors.add(QuestionAnswerAdvisor.builder(vectorStoreRegistry.getStore(storeId)).build());
     }
 
+    var userCtx = UserToolContext.from(authentication);
+    Map<String, Object> toolContextMap = userCtx != null
+        ? Map.of(UserToolContext.TOOL_CONTEXT_KEY, userCtx)
+        : Map.of();
+
     return chatClientBuilder.build()
         .prompt()
         .system(SYSTEM_PROMPT)
@@ -63,6 +71,7 @@ public class ChatService {
             .model(model)
             .temperature(temperature)
             .build())
+        .toolContext(toolContextMap)
         .stream()
         .content();
   }
