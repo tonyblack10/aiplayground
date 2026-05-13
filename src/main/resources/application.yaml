@@ -62,6 +62,15 @@ app:
   github:
     token: ${GITHUB_TOKEN}
     clone-dir: /tmp/github-clones
+    webhooks:
+      # Example: monitor the docs/ folder of a repo on the main branch.
+      # GitHub webhook URL to register: https://<your-host>/webhooks/github
+      # Content type: application/json  |  Events: Push, Pull request
+       - repo-url: https://github.com/tonyblack10/documentations
+         directory:
+         branch: main
+         store-id: redisVectorStore
+         secret: ${GITHUB_WEBHOOK_SECRET:}
   confluence:
     base-url: ${CONFLUENCE_BASE_URL:}
     email: ${CONFLUENCE_EMAIL:}

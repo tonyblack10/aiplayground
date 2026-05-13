@@ -1,6 +1,7 @@
 package io.tonyblack10.aiplayground.config.security;
 
 import java.net.URI;
+import io.tonyblack10.aiplayground.config.github.GitHubWebhookProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,7 +17,7 @@ import org.springframework.security.web.server.util.matcher.ServerWebExchangeMat
 @Configuration
 @EnableWebFluxSecurity
 @EnableReactiveMethodSecurity(useAuthorizationManager = true)
-@EnableConfigurationProperties({UserSecurityProperties.class, JwtProperties.class})
+@EnableConfigurationProperties({UserSecurityProperties.class, JwtProperties.class, GitHubWebhookProperties.class})
 public class SecurityConfig {
 
     @Bean
@@ -43,7 +44,7 @@ public class SecurityConfig {
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
 
                 .authorizeExchange(auth -> auth
-                        .pathMatchers("/login").permitAll()
+                        .pathMatchers("/login", "/webhooks/**").permitAll()
                         .anyExchange().authenticated()
                 )
 
