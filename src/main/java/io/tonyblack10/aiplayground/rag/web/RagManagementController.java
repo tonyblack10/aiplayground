@@ -3,6 +3,7 @@ package io.tonyblack10.aiplayground.rag.web;
 import io.tonyblack10.aiplayground.config.security.RagAuthorityHelper;
 import io.tonyblack10.aiplayground.config.security.RequiresRagAccess;
 import io.tonyblack10.aiplayground.rag.model.ConfluenceImportResult;
+import io.tonyblack10.aiplayground.rag.model.UrlLinksImportResult;
 import io.tonyblack10.aiplayground.rag.service.DocumentManagementService;
 import io.tonyblack10.aiplayground.rag.service.VectorStoreRegistry;
 import jakarta.validation.Valid;
@@ -196,6 +197,36 @@ public class RagManagementController {
           log.error("Monday import failed for board {}", form.boardId(), e);
           model.addAttribute("errorMessage", "Importação falhou: " + e.getMessage());
           return Mono.just("rag/fragments/monday-import-result :: mondayImportFeedback");
+        });
+  }
+
+  @RequiresRagAccess
+  @PostMapping("/{storeId}/documents/url-links")
+  public Mono<String> importFromUrlLinks(
+      @PathVariable String storeId,
+      @Valid @ModelAttribute UrlLinksImportForm form,
+      BindingResult bindingResult,
+      Authentication authentication,
+      Model model) {
+    if (bindingResult.hasErrors()) {
+      model.addAttribute("errorMessage", formatValidationErrors(bindingResult));
+      return Mono.just("rag/fragments/url-links-import-result :: urlLinksImportFeedback");
+    }
+    List<String> urls = Arrays.stream(form.links().split("[\\r\\n]+"))
+        .map(String::strip)
+        .filter(s -> !s.isEmpty() && s.startsWith("http"))
+        .toList();
+    if (urls.isEmpty()) {
+      model.addAttribute("errorMessage", "Nenhum link válido encontrado. Os links devem começar com http:// ou https://");
+      return Mono.just("rag/fragments/url-links-import-result :: urlLinksImportFeedback");
+    }
+    return managementService.importFromUrls(storeId, urls, authentication.getName())
+        .doOnNext(result -> model.addAttribute("urlLinksResult", result))
+        .thenReturn("rag/fragments/url-links-import-result :: urlLinksImportFeedback")
+        .onErrorResume(e -> {
+          log.error("URL links import failed for store {}", storeId, e);
+          model.addAttribute("errorMessage", "Importação falhou: " + e.getMessage());
+          return Mono.just("rag/fragments/url-links-import-result :: urlLinksImportFeedback");
         });
   }
 

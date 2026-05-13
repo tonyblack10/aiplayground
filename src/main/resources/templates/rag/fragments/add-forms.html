@@ -103,65 +103,133 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div class="px-6 py-4 border-b border-gray-100 bg-gray-50">
         <h3 class="text-base font-semibold text-gray-800">Importar do GitHub</h3>
-        <p class="text-sm text-gray-500 mt-0.5">Clona o repositório via HTTPS e ingere os arquivos .md encontrados</p>
+        <p class="text-sm text-gray-500 mt-0.5">Clone um repositório via HTTPS ou importe links diretos de arquivos Markdown/HTML</p>
       </div>
-      <div class="p-6">
-        <form
-            id="github-form"
-            th:hx-post="@{/rag/{s}/documents/github(s=${storeId})}"
-            hx-target="#github-feedback"
-            hx-swap="innerHTML"
-            hx-indicator="#github-spinner"
-            class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">URL HTTPS do Repositório</label>
-            <input type="text" name="repoUrl" id="github-repo-url" required
-                   oninput="validateGithubForm()"
-                   placeholder="https://github.com/owner/repository.git"
-                   class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Branch</label>
-            <input type="text" name="branch" id="github-branch" value="main"
-                   oninput="validateGithubForm()"
-                   class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
-          </div>
+      <div class="p-6 space-y-4">
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">
-              Pastas a importar
-              <span class="text-gray-400 font-normal">(opcional)</span>
-            </label>
-            <textarea name="folders" id="github-folders" rows="3"
-                      placeholder="docs&#10;guides/tutorials&#10;(deixe em branco para importar todo o repositório)"
-                      class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none font-mono"></textarea>
-            <p class="mt-1 text-xs text-gray-400">Uma pasta por linha (caminho relativo à raiz do repositório). Deixe em branco para importar todas as pastas.</p>
-          </div>
+        <!-- GitHub import mode toggle -->
+        <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm font-medium">
+          <label class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 cursor-pointer transition-colors bg-slate-800 text-white" id="github-mode-repo-label">
+            <input type="radio" name="githubMode" value="repo" checked class="sr-only" onchange="switchGithubMode('repo')"/>
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+            </svg>
+            Clonar Repositório
+          </label>
+          <label class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 cursor-pointer transition-colors text-gray-600 hover:bg-gray-50" id="github-mode-links-label">
+            <input type="radio" name="githubMode" value="links" class="sr-only" onchange="switchGithubMode('links')"/>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+            </svg>
+            Importar por Links
+          </label>
+        </div>
 
-          <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-xs text-blue-700">
-            O repositório será clonado usando o token GitHub configurado nas propriedades da aplicação.
-            Somente arquivos <strong>.md</strong> serão ingeridos no RAG.
-          </div>
+        <!-- Clone repo section -->
+        <div id="github-repo-section">
+          <form
+              id="github-form"
+              th:hx-post="@{/rag/{s}/documents/github(s=${storeId})}"
+              hx-target="#github-feedback"
+              hx-swap="innerHTML"
+              hx-indicator="#github-spinner"
+              class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">URL HTTPS do Repositório</label>
+              <input type="text" name="repoUrl" id="github-repo-url" required
+                     oninput="validateGithubForm()"
+                     placeholder="https://github.com/owner/repository.git"
+                     class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Branch</label>
+              <input type="text" name="branch" id="github-branch" value="main"
+                     oninput="validateGithubForm()"
+                     class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
+            </div>
 
-          <div id="github-feedback"></div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                Pastas a importar
+                <span class="text-gray-400 font-normal">(opcional)</span>
+              </label>
+              <textarea name="folders" id="github-folders" rows="3"
+                        placeholder="docs&#10;guides/tutorials&#10;(deixe em branco para importar todo o repositório)"
+                        class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none font-mono"></textarea>
+              <p class="mt-1 text-xs text-gray-400">Uma pasta por linha (caminho relativo à raiz do repositório). Deixe em branco para importar todas as pastas.</p>
+            </div>
 
-          <div class="flex items-center gap-3">
-            <button type="submit" id="github-btn" disabled
-                    class="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
-              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-              </svg>
-              Clonar e Importar
-            </button>
-            <span id="github-spinner" class="htmx-indicator text-sm text-gray-500 flex items-center gap-1.5">
-              <svg class="animate-spin w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-              </svg>
-              Importando arquivos...
-            </span>
-          </div>
-        </form>
+            <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-xs text-blue-700">
+              O repositório será clonado usando o token GitHub configurado nas propriedades da aplicação.
+              Somente arquivos <strong>.md</strong> serão ingeridos no RAG.
+            </div>
+
+            <div id="github-feedback"></div>
+
+            <div class="flex items-center gap-3">
+              <button type="submit" id="github-btn" disabled
+                      class="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+                Clonar e Importar
+              </button>
+              <span id="github-spinner" class="htmx-indicator text-sm text-gray-500 flex items-center gap-1.5">
+                <svg class="animate-spin w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+                Importando arquivos...
+              </span>
+            </div>
+          </form>
+        </div>
+
+        <!-- URL links section -->
+        <div id="github-links-section" class="hidden">
+          <form
+              id="url-links-form"
+              th:hx-post="@{/rag/{s}/documents/url-links(s=${storeId})}"
+              hx-target="#url-links-feedback"
+              hx-swap="innerHTML"
+              hx-indicator="#url-links-spinner"
+              class="space-y-4">
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Links para importar <span class="text-red-500">*</span></label>
+              <textarea name="links" id="url-links-input" rows="6"
+                        oninput="validateUrlLinksForm()"
+                        placeholder="https://github.com/owner/repo/blob/main/README.md&#10;https://raw.githubusercontent.com/owner/repo/main/docs/guide.md&#10;https://example.com/document.html"
+                        class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y font-mono"></textarea>
+              <p class="mt-1 text-xs text-gray-400">Um link por linha. Links do GitHub (blob) são convertidos automaticamente para URL raw. Formatos aceitos: .md, .html e outros suportados pelo Tika.</p>
+            </div>
+
+            <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-xs text-blue-700">
+              O conteúdo de cada link será obtido via HTTP e ingerido no RAG.
+              Links inválidos ou inacessíveis serão reportados individualmente no resultado.
+            </div>
+
+            <div id="url-links-feedback"></div>
+
+            <div class="flex items-center gap-3">
+              <button type="submit" id="url-links-btn" disabled
+                      class="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                </svg>
+                Importar Links
+              </button>
+              <span id="url-links-spinner" class="htmx-indicator text-sm text-gray-500 flex items-center gap-1.5">
+                <svg class="animate-spin w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+                Importando links...
+              </span>
+            </div>
+          </form>
+        </div>
+
       </div>
     </div>
   </div>
@@ -498,11 +566,35 @@
       }
     }
 
+    function switchGithubMode(mode) {
+      const repoSection = document.getElementById('github-repo-section');
+      const linksSection = document.getElementById('github-links-section');
+      const repoLabel = document.getElementById('github-mode-repo-label');
+      const linksLabel = document.getElementById('github-mode-links-label');
+      if (mode === 'links') {
+        repoSection.classList.add('hidden');
+        linksSection.classList.remove('hidden');
+        repoLabel.className = repoLabel.className.replace('bg-slate-800 text-white', 'text-gray-600 hover:bg-gray-50');
+        linksLabel.className = linksLabel.className.replace('text-gray-600 hover:bg-gray-50', 'bg-slate-800 text-white');
+      } else {
+        linksSection.classList.add('hidden');
+        repoSection.classList.remove('hidden');
+        linksLabel.className = linksLabel.className.replace('bg-slate-800 text-white', 'text-gray-600 hover:bg-gray-50');
+        repoLabel.className = repoLabel.className.replace('text-gray-600 hover:bg-gray-50', 'bg-slate-800 text-white');
+      }
+    }
+
     function validateGithubForm() {
       const repoUrl = document.getElementById('github-repo-url').value.trim();
       const branch = document.getElementById('github-branch').value.trim();
       document.getElementById('github-btn').disabled =
           !repoUrl.startsWith('https://') || branch.length === 0;
+    }
+
+    function validateUrlLinksForm() {
+      const links = document.getElementById('url-links-input').value.trim();
+      const hasLinks = links.split('\n').map(s => s.trim()).filter(s => s.startsWith('http')).length > 0;
+      document.getElementById('url-links-btn').disabled = !hasLinks;
     }
 
     function switchConfluenceMode(mode) {
@@ -568,6 +660,9 @@
       if (evt.target.id === 's3-form') {
         document.getElementById('s3-btn').disabled = true;
       }
+      if (evt.target.id === 'url-links-form') {
+        document.getElementById('url-links-btn').disabled = true;
+      }
       if (evt.target.id !== 'upload-form') return;
       document.getElementById('submit-btn').disabled = true;
       document.querySelectorAll('#file-list-items li').forEach(li => {
@@ -597,6 +692,9 @@
       }
       if (evt.target.id === 's3-form') {
         validateS3Form();
+      }
+      if (evt.target.id === 'url-links-form') {
+        validateUrlLinksForm();
       }
     });
   </script>

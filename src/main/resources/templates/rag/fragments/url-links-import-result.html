@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="urlLinksImportFeedback">
+
+  <!-- Error (no result at all) -->
+  <div th:if="${errorMessage}"
+       class="flex items-start gap-2 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+    <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    <span th:text="${errorMessage}"></span>
+  </div>
+
+  <!-- Result summary -->
+  <div th:if="${urlLinksResult}" class="space-y-3">
+
+    <!-- Stats row -->
+    <div class="grid grid-cols-3 gap-3">
+      <div class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-center">
+        <p class="text-2xl font-bold text-gray-800" th:text="${urlLinksResult.totalProcessed()}">0</p>
+        <p class="text-xs text-gray-500 mt-0.5">Links processados</p>
+      </div>
+      <div class="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-center">
+        <p class="text-2xl font-bold text-green-700" th:text="${urlLinksResult.succeeded()}">0</p>
+        <p class="text-xs text-green-600 mt-0.5">Importados com sucesso</p>
+      </div>
+      <div class="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-center">
+        <p class="text-2xl font-bold text-red-700" th:text="${urlLinksResult.failed()}">0</p>
+        <p class="text-xs text-red-600 mt-0.5">Falhas</p>
+      </div>
+    </div>
+
+    <!-- All success banner -->
+    <div th:if="${urlLinksResult.failed() == 0}"
+         class="flex items-center gap-2 px-4 py-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
+      <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      <span>Todos os links importados com sucesso.</span>
+    </div>
+
+    <!-- Partial failure banner -->
+    <div th:if="${urlLinksResult.failed() > 0 and urlLinksResult.succeeded() > 0}"
+         class="flex items-center gap-2 px-4 py-3 rounded-lg bg-yellow-50 border border-yellow-200 text-sm text-yellow-700">
+      <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+      </svg>
+      <span>Importação parcialmente concluída.</span>
+    </div>
+
+    <!-- Per-link results list -->
+    <div class="rounded-lg border border-gray-200 overflow-hidden">
+      <div class="px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+        <p class="text-xs font-medium text-gray-600">Resultado por link</p>
+      </div>
+      <ul class="divide-y divide-gray-100">
+        <li th:each="entry : ${urlLinksResult.entries()}"
+            class="flex items-start gap-3 px-4 py-3">
+          <svg th:if="${entry.success()}" class="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <svg th:unless="${entry.success()}" class="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <div class="min-w-0 flex-1">
+            <p class="text-xs font-mono text-gray-700 break-all" th:text="${entry.url()}"></p>
+            <p th:if="${entry.success()}" class="text-xs text-green-600 mt-0.5"
+               th:text="${entry.chunksIngested()} + ' chunk(s) adicionado(s)'"></p>
+            <p th:unless="${entry.success()}" class="text-xs text-red-600 mt-0.5"
+               th:text="${entry.errorMessage()}"></p>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

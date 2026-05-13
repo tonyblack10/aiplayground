@@ -6,6 +6,7 @@ import io.tonyblack10.aiplayground.rag.model.DocumentImportRecord;
 import io.tonyblack10.aiplayground.rag.model.FileUploadResult;
 import io.tonyblack10.aiplayground.rag.model.MondayImportResult;
 import io.tonyblack10.aiplayground.rag.model.S3ImportResult;
+import io.tonyblack10.aiplayground.rag.model.UrlLinksImportResult;
 import io.tonyblack10.aiplayground.rag.registry.DocumentRegistry;
 import java.time.Instant;
 import java.util.List;
@@ -31,6 +32,7 @@ public class DocumentManagementService {
   private final ConfluenceImportService confluenceImportService;
   private final MondayImportService mondayImportService;
   private final S3ImportService s3ImportService;
+  private final UrlLinksImportService urlLinksImportService;
   private final ImportRecordS3Repository importRecordRepository;
 
   public DocumentManagementService(
@@ -41,6 +43,7 @@ public class DocumentManagementService {
       ConfluenceImportService confluenceImportService,
       MondayImportService mondayImportService,
       S3ImportService s3ImportService,
+      UrlLinksImportService urlLinksImportService,
       ImportRecordS3Repository importRecordRepository) {
     this.vectorStoreRegistry = vectorStoreRegistry;
     this.documentRegistry = documentRegistry;
@@ -49,6 +52,7 @@ public class DocumentManagementService {
     this.confluenceImportService = confluenceImportService;
     this.mondayImportService = mondayImportService;
     this.s3ImportService = s3ImportService;
+    this.urlLinksImportService = urlLinksImportService;
     this.importRecordRepository = importRecordRepository;
   }
 
@@ -226,6 +230,32 @@ public class DocumentManagementService {
               result.filesIngested(),
               result.chunksIngested(),
               result.errors(),
+              List.of());
+        }).subscribeOn(Schedulers.boundedElastic()));
+  }
+
+  public Mono<UrlLinksImportResult> importFromUrls(String storeId, List<String> urls, String importedBy) {
+    return urlLinksImportService.importFromUrls(urls)
+        .flatMap(result -> Mono.fromCallable(() -> {
+          if (!result.documents().isEmpty()) {
+            VectorStore store = vectorStoreRegistry.getStore(storeId);
+            store.add(result.documents());
+            documentRegistry.register(storeId, result.documents());
+          }
+          importRecordRepository.save(new DocumentImportRecord(
+              UUID.randomUUID().toString(),
+              "URL Links (" + urls.size() + " link(s))",
+              Instant.now(),
+              "url-links",
+              importedBy,
+              storeId,
+              Map.of("urls", String.join(",", urls))
+          ));
+          return new UrlLinksImportResult(
+              result.totalProcessed(),
+              result.succeeded(),
+              result.failed(),
+              result.entries(),
               List.of());
         }).subscribeOn(Schedulers.boundedElastic()));
   }
