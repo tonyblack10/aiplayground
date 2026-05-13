@@ -38,7 +38,9 @@
       "Bash(jar -tf /c/Users/tonyb/.m2/repository/io/modelcontextprotocol/sdk/mcp/0.17.0/mcp-0.17.0.jar)",
       "Bash(jar -tf /c/Users/tonyb/.m2/repository/io/modelcontextprotocol/sdk/mcp-core/0.17.0/mcp-core-0.17.0.jar)",
       "Bash(jar -xf /c/Users/tonyb/.m2/repository/io/modelcontextprotocol/sdk/mcp-core/0.17.0/mcp-core-0.17.0-sources.jar \"io/modelcontextprotocol/server/McpStatelessServerFeatures.java\")",
-      "Bash(jar -xf /c/Users/tonyb/.m2/repository/io/modelcontextprotocol/sdk/mcp-core/0.17.0/mcp-core-0.17.0-sources.jar \"io/modelcontextprotocol/spec/McpSchema.java\")"
+      "Bash(jar -xf /c/Users/tonyb/.m2/repository/io/modelcontextprotocol/sdk/mcp-core/0.17.0/mcp-core-0.17.0-sources.jar \"io/modelcontextprotocol/spec/McpSchema.java\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\tonyb\\\\Documents\\\\projects\\\\labs\\\\ia\\\\aiplayground\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)"
     ]
   }
 }
