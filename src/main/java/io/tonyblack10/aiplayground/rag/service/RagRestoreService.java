@@ -230,15 +230,18 @@ public class RagRestoreService {
 
   private Mono<Integer> restoreMonday(String storeId, Map<String, String> data) {
     String boardId = data.getOrDefault("boardId", "");
-    return mondayImportService.importFromBoard(boardId)
-        .flatMap(result -> Mono.fromCallable(() -> {
-          if (!result.documents().isEmpty()) {
-            vectorStoreRegistry.getStore(storeId).add(result.documents());
-            documentRegistry.register(storeId, result.documents());
-          }
-          log.info("Monday restore: {} chunk(s) re-ingested from board {}", result.chunksIngested(), boardId);
-          return result.chunksIngested();
-        }).subscribeOn(Schedulers.boundedElastic()));
+    List<String> itemIds = splitCsv(data.getOrDefault("itemIds", ""));
+    Mono<io.tonyblack10.aiplayground.rag.model.MondayImportResult> importMono = itemIds.isEmpty()
+        ? mondayImportService.importFromBoard(boardId)
+        : mondayImportService.importFromItems(boardId, itemIds);
+    return importMono.flatMap(result -> Mono.fromCallable(() -> {
+      if (!result.documents().isEmpty()) {
+        vectorStoreRegistry.getStore(storeId).add(result.documents());
+        documentRegistry.register(storeId, result.documents());
+      }
+      log.info("Monday restore: {} chunk(s) re-ingested from board {}", result.chunksIngested(), boardId);
+      return result.chunksIngested();
+    }).subscribeOn(Schedulers.boundedElastic()));
   }
 
   private Mono<Integer> restoreUrlLinks(String storeId, Map<String, String> data) {

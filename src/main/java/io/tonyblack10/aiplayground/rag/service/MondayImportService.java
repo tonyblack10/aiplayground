@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.tonyblack10.aiplayground.rag.model.MondayImportResult;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -56,6 +57,44 @@ public class MondayImportService {
     return fetchAllItems(boardId)
         .collectList()
         .flatMap(items -> processItems(items, boardId));
+  }
+
+  public Mono<MondayImportResult> importFromItems(String boardId, List<String> itemIds) {
+    if (apiToken.isBlank()) {
+      return Mono.error(new IllegalStateException(
+          "Monday.com não está configurado. Defina MONDAY_API_TOKEN nas propriedades da aplicação."));
+    }
+    if (itemIds.isEmpty()) {
+      return Mono.just(new MondayImportResult(0, 0, 0, List.of(), List.of()));
+    }
+    return fetchItemsByIds(itemIds)
+        .collectList()
+        .flatMap(items -> processItems(items, boardId));
+  }
+
+  private Flux<ItemResult> fetchItemsByIds(List<String> itemIds) {
+    List<List<String>> batches = partitioned(itemIds, 100);
+    return Flux.fromIterable(batches)
+        .index()
+        .concatMap(indexed -> {
+          Mono<List<ItemResult>> fetch = fetchItemsBatch(indexed.getT2());
+          return indexed.getT1() > 0 ? Mono.delay(REQUEST_DELAY).then(fetch) : fetch;
+        })
+        .flatMapIterable(items -> items);
+  }
+
+  private Mono<List<ItemResult>> fetchItemsBatch(List<String> ids) {
+    String query = "query ItemsByIds($ids: [ID!]!) { items(ids: $ids) { id name group { id title } column_values { id column { title } text } } }";
+    return postGraphQL(Map.of("query", query, "variables", Map.of("ids", ids)), "items by ids " + ids)
+        .map(r -> (r.data() != null && r.data().items() != null) ? r.data().items() : List.of());
+  }
+
+  private static <T> List<List<T>> partitioned(List<T> list, int size) {
+    List<List<T>> result = new ArrayList<>();
+    for (int i = 0; i < list.size(); i += size) {
+      result.add(list.subList(i, Math.min(i + size, list.size())));
+    }
+    return result;
   }
 
   private Flux<ItemResult> fetchAllItems(String boardId) {
@@ -199,7 +238,7 @@ public class MondayImportService {
   private record GraphQLResponse(DataWrapper data) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
-  private record DataWrapper(List<BoardResult> boards) {}
+  private record DataWrapper(List<BoardResult> boards, List<ItemResult> items) {}
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   private record BoardResult(@JsonProperty("items_page") ItemsPage itemsPage) {}

@@ -7,6 +7,8 @@ public record MondayImportForm(
 
     @NotBlank(message = "O ID do Board é obrigatório")
     @Pattern(regexp = "\\d+", message = "O ID do Board deve conter apenas números")
-    String boardId
+    String boardId,
+
+    String itemIds
 
 ) {}

@@ -177,22 +177,31 @@ public class DocumentManagementService {
     }).subscribeOn(Schedulers.boundedElastic());
   }
 
-  public Mono<MondayImportResult> importFromMonday(String storeId, String boardId, String importedBy) {
-    return mondayImportService.importFromBoard(boardId)
+  public Mono<MondayImportResult> importFromMonday(
+      String storeId, String boardId, List<String> itemIds, String importedBy) {
+    Mono<MondayImportResult> importMono = itemIds.isEmpty()
+        ? mondayImportService.importFromBoard(boardId)
+        : mondayImportService.importFromItems(boardId, itemIds);
+    return importMono
         .flatMap(result -> Mono.fromCallable(() -> {
           if (!result.documents().isEmpty()) {
             VectorStore store = vectorStoreRegistry.getStore(storeId);
             store.add(result.documents());
             documentRegistry.register(storeId, result.documents());
           }
+          boolean hasItems = !itemIds.isEmpty();
           importRecordRepository.save(new DocumentImportRecord(
               UUID.randomUUID().toString(),
-              "Monday Board: " + boardId,
+              hasItems
+                  ? "Monday Board: " + boardId + " (" + itemIds.size() + " item(s))"
+                  : "Monday Board: " + boardId,
               Instant.now(),
               "monday",
               importedBy,
               storeId,
-              Map.of("boardId", boardId)
+              hasItems
+                  ? Map.of("boardId", boardId, "itemIds", String.join(",", itemIds))
+                  : Map.of("boardId", boardId)
           ));
           return new MondayImportResult(
               result.itemsProcessed(),

@@ -203,7 +203,13 @@ public class RagManagementController {
       model.addAttribute("errorMessage", formatValidationErrors(bindingResult));
       return Mono.just("rag/fragments/monday-import-result :: mondayImportFeedback");
     }
-    return managementService.importFromMonday(storeId, form.boardId().strip(), authentication.getName())
+    List<String> itemIds = (form.itemIds() != null && !form.itemIds().isBlank())
+        ? Arrays.stream(form.itemIds().split("[\\r\\n,]+"))
+              .map(String::strip)
+              .filter(s -> s.matches("\\d+"))
+              .toList()
+        : List.of();
+    return managementService.importFromMonday(storeId, form.boardId().strip(), itemIds, authentication.getName())
         .doOnNext(result -> model.addAttribute("mondayResult", result))
         .thenReturn("rag/fragments/monday-import-result :: mondayImportFeedback")
         .onErrorResume(e -> {
