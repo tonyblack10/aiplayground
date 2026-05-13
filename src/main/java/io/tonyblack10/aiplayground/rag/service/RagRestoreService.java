@@ -1,13 +1,16 @@
 package io.tonyblack10.aiplayground.rag.service;
 
 import io.tonyblack10.aiplayground.rag.model.DocumentImportRecord;
+import io.tonyblack10.aiplayground.rag.model.RestoreStreamEvent;
 import io.tonyblack10.aiplayground.rag.registry.DocumentRegistry;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -16,7 +19,7 @@ import reactor.core.scheduler.Schedulers;
 /**
  * Restores the RAG from import records persisted in S3.
  *
- * <p>Only integration-sourced documents (github, confluence, s3, monday) are restored.
+ * <p>Only integration-sourced documents (github, confluence, s3, monday, url-links) are restored.
  * File uploads are excluded because the original bytes are not retained.</p>
  */
 @Service
@@ -29,8 +32,11 @@ public class RagRestoreService {
   private final ConfluenceImportService confluenceImportService;
   private final S3ImportService s3ImportService;
   private final MondayImportService mondayImportService;
+  private final UrlLinksImportService urlLinksImportService;
   private final VectorStoreRegistry vectorStoreRegistry;
   private final DocumentRegistry documentRegistry;
+
+  private final ConcurrentHashMap<String, AtomicBoolean> activeRestores = new ConcurrentHashMap<>();
 
   public RagRestoreService(
       ImportRecordS3Repository recordRepository,
@@ -38,6 +44,7 @@ public class RagRestoreService {
       ConfluenceImportService confluenceImportService,
       S3ImportService s3ImportService,
       MondayImportService mondayImportService,
+      UrlLinksImportService urlLinksImportService,
       VectorStoreRegistry vectorStoreRegistry,
       DocumentRegistry documentRegistry) {
     this.recordRepository = recordRepository;
@@ -45,8 +52,90 @@ public class RagRestoreService {
     this.confluenceImportService = confluenceImportService;
     this.s3ImportService = s3ImportService;
     this.mondayImportService = mondayImportService;
+    this.urlLinksImportService = urlLinksImportService;
     this.vectorStoreRegistry = vectorStoreRegistry;
     this.documentRegistry = documentRegistry;
+  }
+
+  public boolean isRunning(String storeId) {
+    return activeRestores.containsKey(storeId);
+  }
+
+  public boolean cancelRestore(String storeId) {
+    AtomicBoolean flag = activeRestores.get(storeId);
+    if (flag != null) {
+      flag.set(true);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Streams restore progress for a specific store as a sequence of {@link RestoreStreamEvent}s.
+   * Emits: started → N×progress → done|cancelled.
+   * Only one restore per storeId can run at a time.
+   */
+  public Flux<RestoreStreamEvent> restoreByStore(String storeId) {
+    AtomicBoolean cancelled = new AtomicBoolean(false);
+    if (activeRestores.putIfAbsent(storeId, cancelled) != null) {
+      return Flux.error(new IllegalStateException("Restauração já em andamento para esta store."));
+    }
+
+    return Mono.fromCallable(recordRepository::findAll)
+        .subscribeOn(Schedulers.boundedElastic())
+        .flatMapMany(allRecords -> {
+          List<DocumentImportRecord> storeRecords = allRecords.stream()
+              .filter(r -> storeId.equals(r.storeId()))
+              .filter(r -> !"upload".equals(r.source()))
+              .toList();
+
+          int total = storeRecords.size();
+          log.info("Starting restore for store {}: {} record(s)", storeId, total);
+
+          if (total == 0) {
+            return Flux.just(RestoreStreamEvent.started(0), RestoreStreamEvent.done(0, 0, 0));
+          }
+
+          AtomicInteger current = new AtomicInteger(0);
+          AtomicInteger succeeded = new AtomicInteger(0);
+          AtomicInteger failed = new AtomicInteger(0);
+
+          Flux<RestoreStreamEvent> progressFlux = Flux.fromIterable(storeRecords)
+              .takeWhile(r -> !cancelled.get())
+              .concatMap(record -> {
+                int idx = current.incrementAndGet();
+                return restoreRecord(record)
+                    .map(chunks -> {
+                      succeeded.incrementAndGet();
+                      return RestoreStreamEvent.progress(
+                          record.id(), record.source(), record.documentName(),
+                          chunks, null, idx, total);
+                    })
+                    .onErrorResume(e -> {
+                      failed.incrementAndGet();
+                      log.warn("Failed to restore record {} ({}): {}", record.id(), record.source(), e.getMessage());
+                      return Mono.just(RestoreStreamEvent.progress(
+                          record.id(), record.source(), record.documentName(),
+                          0, e.getMessage(), idx, total));
+                    });
+              });
+
+          return Flux.concat(
+              Flux.just(RestoreStreamEvent.started(total)),
+              progressFlux,
+              Flux.defer(() -> cancelled.get()
+                  ? Flux.just(RestoreStreamEvent.cancelled(current.get()))
+                  : Flux.just(RestoreStreamEvent.done(total, succeeded.get(), failed.get())))
+          );
+        })
+        .doFinally(signal -> {
+          activeRestores.remove(storeId);
+          log.info("Restore stream for store {} finished (signal: {})", storeId, signal);
+        })
+        .onErrorResume(e -> {
+          log.error("Restore stream fatal error for store {}: {}", storeId, e.getMessage());
+          return Flux.just(RestoreStreamEvent.error(e.getMessage()));
+        });
   }
 
   /**
@@ -88,6 +177,7 @@ public class RagRestoreService {
       case "confluence" -> restoreConfluence(record.storeId(), data);
       case "s3" -> restoreS3(record.storeId(), data);
       case "monday" -> restoreMonday(record.storeId(), data);
+      case "url-links" -> restoreUrlLinks(record.storeId(), data);
       default -> Mono.error(new IllegalArgumentException("Unsupported source for restore: " + record.source()));
     };
   }
@@ -148,6 +238,20 @@ public class RagRestoreService {
           }
           log.info("Monday restore: {} chunk(s) re-ingested from board {}", result.chunksIngested(), boardId);
           return result.chunksIngested();
+        }).subscribeOn(Schedulers.boundedElastic()));
+  }
+
+  private Mono<Integer> restoreUrlLinks(String storeId, Map<String, String> data) {
+    List<String> urls = splitCsv(data.getOrDefault("urls", ""));
+    if (urls.isEmpty()) return Mono.just(0);
+    return urlLinksImportService.importFromUrls(urls)
+        .flatMap(result -> Mono.fromCallable(() -> {
+          if (!result.documents().isEmpty()) {
+            vectorStoreRegistry.getStore(storeId).add(result.documents());
+            documentRegistry.register(storeId, result.documents());
+          }
+          log.info("URL links restore: {} chunk(s) re-ingested", result.documents().size());
+          return result.documents().size();
         }).subscribeOn(Schedulers.boundedElastic()));
   }
 

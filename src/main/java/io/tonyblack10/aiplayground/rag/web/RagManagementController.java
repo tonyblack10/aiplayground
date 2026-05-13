@@ -1,15 +1,20 @@
 package io.tonyblack10.aiplayground.rag.web;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.tonyblack10.aiplayground.config.security.RagAuthorityHelper;
 import io.tonyblack10.aiplayground.config.security.RequiresRagAccess;
 import io.tonyblack10.aiplayground.rag.model.ConfluenceImportResult;
+import io.tonyblack10.aiplayground.rag.model.RestoreStreamEvent;
 import io.tonyblack10.aiplayground.rag.model.UrlLinksImportResult;
 import io.tonyblack10.aiplayground.rag.service.DocumentManagementService;
+import io.tonyblack10.aiplayground.rag.service.RagRestoreService;
 import io.tonyblack10.aiplayground.rag.service.VectorStoreRegistry;
 import jakarta.validation.Valid;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.slf4j.Logger;
@@ -19,12 +24,14 @@ import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.ResponseBody;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -37,13 +44,19 @@ public class RagManagementController {
   private final DocumentManagementService managementService;
   private final VectorStoreRegistry storeRegistry;
   private final RagAuthorityHelper ragAuthorityHelper;
+  private final RagRestoreService ragRestoreService;
+  private final ObjectMapper objectMapper;
 
   public RagManagementController(DocumentManagementService managementService,
       VectorStoreRegistry storeRegistry,
-      RagAuthorityHelper ragAuthorityHelper) {
+      RagAuthorityHelper ragAuthorityHelper,
+      RagRestoreService ragRestoreService,
+      ObjectMapper objectMapper) {
     this.managementService = managementService;
     this.storeRegistry = storeRegistry;
     this.ragAuthorityHelper = ragAuthorityHelper;
+    this.ragRestoreService = ragRestoreService;
+    this.objectMapper = objectMapper;
   }
 
   @PreAuthorize("@ragAuthorityHelper.hasAnyRagAccess(authentication)")
@@ -304,6 +317,50 @@ public class RagManagementController {
           model.addAttribute("errorMessage", "Search failed: " + e.getMessage());
           return Mono.just("rag/fragments/feedback :: feedback");
         });
+  }
+
+  @RequiresRagAccess
+  @GetMapping("/{storeId}/restore")
+  public Mono<String> restorePanel(@PathVariable String storeId, Model model) {
+    return Mono.fromCallable(() -> {
+      model.addAttribute("storeId", storeId);
+      model.addAttribute("restoreRunning", ragRestoreService.isRunning(storeId));
+      return "rag/fragments/restore-panel :: restorePanel";
+    }).subscribeOn(Schedulers.boundedElastic());
+  }
+
+  @RequiresRagAccess
+  @GetMapping(value = "/{storeId}/restore/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  @ResponseBody
+  public Flux<ServerSentEvent<String>> restoreStream(
+      @PathVariable String storeId, Authentication authentication) {
+    return ragRestoreService.restoreByStore(storeId)
+        .map(event -> {
+          try {
+            return ServerSentEvent.<String>builder()
+                .event(event.type())
+                .data(objectMapper.writeValueAsString(event))
+                .build();
+          } catch (JsonProcessingException e) {
+            return ServerSentEvent.<String>builder()
+                .event("error")
+                .data("{\"type\":\"error\",\"error\":\"Serialization failed\"}")
+                .build();
+          }
+        })
+        .onErrorResume(e -> {
+          log.error("Restore stream error for store {} (user: {}): {}", storeId, authentication.getName(), e.getMessage());
+          String errJson = "{\"type\":\"error\",\"error\":\"" + e.getMessage().replace("\"", "'") + "\"}";
+          return Flux.just(ServerSentEvent.<String>builder().event("error").data(errJson).build());
+        });
+  }
+
+  @RequiresRagAccess
+  @DeleteMapping("/{storeId}/restore")
+  @ResponseBody
+  public Mono<Void> cancelRestore(@PathVariable String storeId) {
+    ragRestoreService.cancelRestore(storeId);
+    return Mono.empty();
   }
 
   private String formatValidationErrors(BindingResult bindingResult) {
