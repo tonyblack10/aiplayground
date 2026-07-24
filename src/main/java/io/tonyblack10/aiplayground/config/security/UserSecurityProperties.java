@@ -19,7 +19,9 @@ import java.util.Map;
  *     permissions:
  *       # RAG_ACCESS_ALL grants unrestricted access to every store.
  *       # RAG_ACCESS_{SUFFIX} grants access to a specific store.
- *       # Store suffixes: SIMPLE (simpleVectorStore), PGVECTOR (pgVectorStore), REDIS (redisVectorStore).
+ *       # Store suffixes: SIMPLE (simpleVectorStore), PGVECTOR (pgVectorStore),
+ *       # plus one suffix per configured Redis store (app.rag.redis.stores[].name,
+ *       # upper-cased) unless explicitly mapped in RagAuthorityHelper.
  *       # Users without any RAG_ACCESS_* authority cannot see or access the RAG section at all.
  *       RAG_ACCESS_ALL:
  *         - user01

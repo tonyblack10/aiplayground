@@ -1,5 +1,6 @@
 package io.tonyblack10.aiplayground.rag.service;
 
+import io.tonyblack10.aiplayground.config.rag.vectorstore.RedisVectorStoreProperties;
 import io.tonyblack10.aiplayground.rag.model.VectorStoreInfo;
 import io.tonyblack10.aiplayground.rag.registry.DocumentRegistry;
 import java.util.LinkedHashMap;
@@ -10,24 +11,34 @@ import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 @Component
 public class VectorStoreRegistry {
 
   private final Map<String, VectorStore> stores;
+  private final Map<String, String> redisDisplayNames;
   private final DocumentRegistry documentRegistry;
 
   public VectorStoreRegistry(
       @Qualifier("simpleVectorStore") VectorStore simpleVectorStore,
       @Qualifier("pgVectorStore") VectorStore pgVectorStore,
-      @Qualifier("redisVectorStore") VectorStore redisVectorStore,
+      @Qualifier("redisVectorStores") Map<String, VectorStore> redisVectorStores,
+      RedisVectorStoreProperties redisVectorStoreProperties,
       DocumentRegistry documentRegistry) {
     this.documentRegistry = documentRegistry;
     this.stores = new LinkedHashMap<>();
     this.stores.put("simpleVectorStore", simpleVectorStore);
     this.stores.put("pgVectorStore", pgVectorStore);
-    this.stores.put("redisVectorStore", redisVectorStore);
+    this.stores.putAll(redisVectorStores);
+
+    this.redisDisplayNames = new LinkedHashMap<>();
+    for (RedisVectorStoreProperties.StoreConfig storeConfig : redisVectorStoreProperties.getStores()) {
+      if (StringUtils.hasText(storeConfig.getDisplayName())) {
+        this.redisDisplayNames.put(storeConfig.getName(), storeConfig.getDisplayName());
+      }
+    }
   }
 
   public List<VectorStoreInfo> getAllStoreInfos() {
@@ -64,12 +75,11 @@ public class VectorStoreRegistry {
     return name.toUpperCase();
   }
 
-  private String resolveDisplayName(String beanName) {
-    return switch (beanName) {
+  private String resolveDisplayName(String storeId) {
+    return switch (storeId) {
       case "simpleVectorStore" -> "Simple (In-Memory)";
       case "pgVectorStore" -> "PgVector (PostgreSQL)";
-      case "redisVectorStore" -> "Redis";
-      default -> beanName;
+      default -> redisDisplayNames.getOrDefault(storeId, storeId);
     };
   }
 }

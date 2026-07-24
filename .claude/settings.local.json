@@ -40,7 +40,11 @@
       "Bash(jar -xf /c/Users/tonyb/.m2/repository/io/modelcontextprotocol/sdk/mcp-core/0.17.0/mcp-core-0.17.0-sources.jar \"io/modelcontextprotocol/server/McpStatelessServerFeatures.java\")",
       "Bash(jar -xf /c/Users/tonyb/.m2/repository/io/modelcontextprotocol/sdk/mcp-core/0.17.0/mcp-core-0.17.0-sources.jar \"io/modelcontextprotocol/spec/McpSchema.java\")",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\tonyb\\\\Documents\\\\projects\\\\labs\\\\ia\\\\aiplayground\" -Recurse -Directory)",
-      "Bash(Select-Object -ExpandProperty FullName)"
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Read(//c/Users/tonyb/.m2/**)",
+      "Bash(mvn -q -o compile)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(mvn -q -o test-compile)"
     ]
   }
 }

@@ -35,6 +35,23 @@ spring:
 app:
   frontend:
     base-url: ${APP_FRONTEND_BASE_URL:}
+  rag:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      username: ${REDIS_USERNAME:}
+      password: ${REDIS_PASSWORD:}
+      ssl: ${REDIS_SSL:false}
+      # Each entry is registered as its own vector store (unique 'name'), all sharing
+      # the Redis connection above. See:
+      # https://docs.spring.io/spring-ai/reference/1.1/api/vectordbs/redis.html#_manual_configuration
+      stores:
+        - name: redisVectorStore
+          display-name: Redis
+          index-name: custom-index
+          prefix: "custom-prefix:"
+          vector-algorithm: HNSW
+          initialize-schema: true
   user:
     accounts:
       user01: "{noop}pass01"

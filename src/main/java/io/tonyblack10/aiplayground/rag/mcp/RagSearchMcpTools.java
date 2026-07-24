@@ -29,7 +29,7 @@ public class RagSearchMcpTools {
 
   @Tool(description = "Search for RAG documents using semantic similarity in a specific vector store. Returns matching document chunks with content and metadata.")
   public List<SearchResult> searchRagDocuments(
-      @ToolParam(description = "ID of the vector store to search. Available values: 'simpleVectorStore', 'pgVectorStore', 'redisVectorStore'") String storeId,
+      @ToolParam(description = "ID of the vector store to search, e.g. 'simpleVectorStore', 'pgVectorStore', or one of the configured Redis store names (default: 'redisVectorStore')") String storeId,
       @ToolParam(description = "Natural language query to find semantically similar documents") String query,
       @ToolParam(required = false, description = "Maximum number of results to return (1-20, default 5)") Integer topK,
       @ToolParam(required = false, description = "Minimum similarity score from 0.0 to 1.0 (default 0.0)") Double similarityThreshold,
