@@ -39,7 +39,7 @@ public class ImportRecordS3Repository {
       @Value("${app.s3.secret-access-key:}") String secretAccessKey,
       @Value("${app.s3.endpoint:}") String endpoint,
       @Value("${app.s3.records-bucket:}") String recordsBucket,
-      @Value("${app.s3.records-prefix:rag-records}") String recordsPrefix) {
+      @Value("${app.s3.records-prefix:records}") String recordsPrefix) {
 
     this.recordsBucket = recordsBucket;
     this.recordsPrefix = recordsPrefix.endsWith("/") ? recordsPrefix : recordsPrefix + "/";
@@ -68,7 +68,7 @@ public class ImportRecordS3Repository {
     }
     try {
       byte[] json = objectMapper.writeValueAsBytes(record);
-      String key = recordsPrefix + record.id() + ".json";
+      String key = storePrefix(record.storeId()) + record.id() + ".json";
       s3Client.putObject(
           PutObjectRequest.builder()
               .bucket(recordsBucket)
@@ -83,6 +83,14 @@ public class ImportRecordS3Repository {
   }
 
   public List<DocumentImportRecord> findAll() {
+    return findAllUnderPrefix(recordsPrefix);
+  }
+
+  public List<DocumentImportRecord> findAllByStore(String storeId) {
+    return findAllUnderPrefix(storePrefix(storeId));
+  }
+
+  private List<DocumentImportRecord> findAllUnderPrefix(String prefix) {
     if (recordsBucket.isBlank()) {
       log.debug("No records bucket configured, returning empty record list");
       return List.of();
@@ -93,7 +101,7 @@ public class ImportRecordS3Repository {
     do {
       ListObjectsV2Request.Builder reqBuilder = ListObjectsV2Request.builder()
           .bucket(recordsBucket)
-          .prefix(recordsPrefix);
+          .prefix(prefix);
 
       if (continuationToken != null) {
         reqBuilder.continuationToken(continuationToken);
@@ -118,7 +126,12 @@ public class ImportRecordS3Repository {
 
     } while (continuationToken != null);
 
-    log.info("Loaded {} import records from s3://{}/{}", records.size(), recordsBucket, recordsPrefix);
+    log.info("Loaded {} import records from s3://{}/{}", records.size(), recordsBucket, prefix);
     return records;
+  }
+
+  /** Returns the folder (with trailing slash) that holds records for a given vector store. */
+  private String storePrefix(String storeId) {
+    return recordsPrefix + storeId + "/";
   }
 }

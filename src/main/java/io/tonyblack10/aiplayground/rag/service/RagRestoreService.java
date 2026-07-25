@@ -81,11 +81,10 @@ public class RagRestoreService {
       return Flux.error(new IllegalStateException("Restauração já em andamento para esta store."));
     }
 
-    return Mono.fromCallable(recordRepository::findAll)
+    return Mono.fromCallable(() -> recordRepository.findAllByStore(storeId))
         .subscribeOn(Schedulers.boundedElastic())
-        .flatMapMany(allRecords -> {
-          List<DocumentImportRecord> storeRecords = allRecords.stream()
-              .filter(r -> storeId.equals(r.storeId()))
+        .flatMapMany(storeAllRecords -> {
+          List<DocumentImportRecord> storeRecords = storeAllRecords.stream()
               .filter(r -> !"upload".equals(r.source()))
               .toList();
 
