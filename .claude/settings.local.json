@@ -44,7 +44,10 @@
       "Read(//c/Users/tonyb/.m2/**)",
       "Bash(mvn -q -o compile)",
       "Bash(echo \"EXIT: $?\")",
-      "Bash(mvn -q -o test-compile)"
+      "Bash(mvn -q -o test-compile)",
+      "Bash(mvn -o -q help:evaluate -Dexpression=spring-ai.version -DforceStdout)",
+      "Bash(xargs -I{} echo {})",
+      "Bash(unzip -o -q /c/Users/tonyb/.m2/repository/org/springframework/spring-web/6.2.18/spring-web-6.2.18.jar org/springframework/http/HttpHeaders.class -d hh)"
     ]
   }
 }

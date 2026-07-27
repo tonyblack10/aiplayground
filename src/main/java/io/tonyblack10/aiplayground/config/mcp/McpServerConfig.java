@@ -1,6 +1,7 @@
 package io.tonyblack10.aiplayground.config.mcp;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.modelcontextprotocol.common.McpTransportContext;
 import io.modelcontextprotocol.json.jackson.JacksonMcpJsonMapper;
 import io.modelcontextprotocol.server.McpServer;
 import io.modelcontextprotocol.server.McpStatelessAsyncServer;
@@ -9,11 +10,14 @@ import io.modelcontextprotocol.server.McpStatelessServerFeatures.AsyncPromptSpec
 import io.modelcontextprotocol.server.McpStatelessServerFeatures.AsyncResourceSpecification;
 import io.modelcontextprotocol.server.McpStatelessServerFeatures.AsyncResourceTemplateSpecification;
 import io.modelcontextprotocol.server.McpStatelessServerFeatures.AsyncToolSpecification;
+import io.modelcontextprotocol.server.transport.WebFluxStatelessServerTransport;
 import io.modelcontextprotocol.spec.McpSchema;
 import io.modelcontextprotocol.spec.McpStatelessServerTransport;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.springframework.ai.mcp.server.common.autoconfigure.properties.McpServerProperties;
+import org.springframework.ai.mcp.server.common.autoconfigure.properties.McpServerStreamableHttpProperties;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -28,12 +32,30 @@ import org.springframework.util.CollectionUtils;
  * causes -32603 errors when MCP clients send newer protocol fields (e.g. elicitation.form).
  */
 @Configuration
-@EnableConfigurationProperties(McpServerProperties.class)
+@EnableConfigurationProperties({McpServerProperties.class, McpServerStreamableHttpProperties.class})
 public class McpServerConfig {
 
     @Bean
     public McpSchema.ServerCapabilities.Builder capabilitiesBuilder() {
         return McpSchema.ServerCapabilities.builder();
+    }
+
+    /**
+     * Overrides the auto-configured transport to capture the incoming HTTP headers into
+     * the {@link McpTransportContext}, so tool implementations can read request headers
+     * (e.g. to select a vector store) via {@link McpTransportHeaders}.
+     */
+    @Bean
+    public WebFluxStatelessServerTransport webFluxStatelessServerTransport(
+            @Qualifier("mcpServerObjectMapper") ObjectMapper mcpServerObjectMapper,
+            McpServerStreamableHttpProperties streamableHttpProperties) {
+
+        return WebFluxStatelessServerTransport.builder()
+                .jsonMapper(new JacksonMcpJsonMapper(mcpServerObjectMapper))
+                .messageEndpoint(streamableHttpProperties.getMcpEndpoint())
+                .contextExtractor(request -> McpTransportContext.create(
+                        Map.of(McpTransportHeaders.HEADERS_CONTEXT_KEY, request.headers().asHttpHeaders())))
+                .build();
     }
 
     @Bean

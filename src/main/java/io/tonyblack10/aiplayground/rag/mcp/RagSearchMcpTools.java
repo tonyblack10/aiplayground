@@ -1,6 +1,7 @@
 package io.tonyblack10.aiplayground.rag.mcp;
 
 import io.tonyblack10.aiplayground.chat.service.tools.UserToolContext;
+import io.tonyblack10.aiplayground.config.mcp.McpTransportHeaders;
 import io.tonyblack10.aiplayground.rag.model.DocumentEntry;
 import io.tonyblack10.aiplayground.rag.service.DocumentManagementService;
 import io.tonyblack10.aiplayground.rag.service.VectorStoreRegistry;
@@ -19,6 +20,12 @@ public class RagSearchMcpTools {
 
   private static final Logger log = LoggerFactory.getLogger(RagSearchMcpTools.class);
 
+  /** HTTP header carrying the target vector store name, without the {@link #VECTOR_STORE_SUFFIX}. */
+  private static final String VECTOR_STORE_HEADER = "X-Vector-Store";
+
+  /** Suffix appended to the header value to form the full vector store id (e.g. 'simple' -> 'simpleVectorStore'). */
+  private static final String VECTOR_STORE_SUFFIX = "VectorStore";
+
   private final DocumentManagementService documentManagementService;
 
   public RagSearchMcpTools(
@@ -27,9 +34,9 @@ public class RagSearchMcpTools {
     this.documentManagementService = documentManagementService;
   }
 
-  @Tool(description = "Search for RAG documents using semantic similarity in a specific vector store. Returns matching document chunks with content and metadata.")
+  @Tool(description = "Search for RAG documents using semantic similarity in the vector store selected via the '"
+      + VECTOR_STORE_HEADER + "' HTTP header. Returns matching document chunks with content and metadata.")
   public List<SearchResult> searchRagDocuments(
-      @ToolParam(description = "ID of the vector store to search, e.g. 'simpleVectorStore', 'pgVectorStore', or one of the configured Redis store names (default: 'redisVectorStore')") String storeId,
       @ToolParam(description = "Natural language query to find semantically similar documents") String query,
       @ToolParam(required = false, description = "Maximum number of results to return (1-20, default 5)") Integer topK,
       @ToolParam(required = false, description = "Minimum similarity score from 0.0 to 1.0 (default 0.0)") Double similarityThreshold,
@@ -38,6 +45,7 @@ public class RagSearchMcpTools {
   ) {
     int k = topK != null ? Math.clamp(topK, 1, 20) : 5;
     double threshold = similarityThreshold != null ? similarityThreshold : 0.0;
+    String storeId = resolveStoreId(toolContext);
 
     var userCtx = (UserToolContext) toolContext.getContext().get(UserToolContext.TOOL_CONTEXT_KEY);
     if (userCtx != null) {
@@ -50,6 +58,17 @@ public class RagSearchMcpTools {
     return documentManagementService.semanticSearch(storeId, query, k, threshold, filterExpression)
         .map(docs -> docs.stream().map(SearchResult::from).toList())
         .block();
+  }
+
+  /** Combines the '{@value #VECTOR_STORE_HEADER}' header value with the '{@value #VECTOR_STORE_SUFFIX}' suffix. */
+  private String resolveStoreId(ToolContext toolContext) {
+    String storeName = McpTransportHeaders.from(toolContext).getFirst(VECTOR_STORE_HEADER);
+    if (storeName == null || storeName.isBlank()) {
+      throw new IllegalArgumentException(
+          "Missing required '" + VECTOR_STORE_HEADER + "' header identifying the vector store (its name without the '"
+              + VECTOR_STORE_SUFFIX + "' suffix)");
+    }
+    return storeName.strip() + VECTOR_STORE_SUFFIX;
   }
 
   public record SearchResult(String id, String content, Map<String, Object> metadata,
