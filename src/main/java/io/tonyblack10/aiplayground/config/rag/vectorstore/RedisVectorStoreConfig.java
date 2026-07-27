@@ -78,7 +78,12 @@ public class RedisVectorStoreConfig {
     if (!cfg.getMetadataFields().isEmpty()) {
       builder.metadataFields(cfg.getMetadataFields().stream().map(this::toMetadataField).toList());
     }
-    return builder.build();
+    RedisVectorStore store = builder.build();
+    // Built manually rather than as its own @Bean, so Spring never invokes this
+    // InitializingBean callback for us; without it the RediSearch index (FT.CREATE)
+    // is never created and every search fails with "no such index".
+    store.afterPropertiesSet();
+    return store;
   }
 
   private RedisVectorStore.MetadataField toMetadataField(RedisVectorStoreProperties.MetadataFieldConfig field) {

@@ -47,7 +47,10 @@
       "Bash(mvn -q -o test-compile)",
       "Bash(mvn -o -q help:evaluate -Dexpression=spring-ai.version -DforceStdout)",
       "Bash(xargs -I{} echo {})",
-      "Bash(unzip -o -q /c/Users/tonyb/.m2/repository/org/springframework/spring-web/6.2.18/spring-web-6.2.18.jar org/springframework/http/HttpHeaders.class -d hh)"
+      "Bash(unzip -o -q /c/Users/tonyb/.m2/repository/org/springframework/spring-web/6.2.18/spring-web-6.2.18.jar org/springframework/http/HttpHeaders.class -d hh)",
+      "Bash(unzip -l \"C:\\\\Users\\\\tonyb\\\\.m2\\\\repository\\\\org\\\\springframework\\\\ai\\\\spring-ai-redis-store\\\\1.1.3\\\\spring-ai-redis-store-1.1.3-sources.jar\")",
+      "Bash(unzip -o \"C:\\\\Users\\\\tonyb\\\\.m2\\\\repository\\\\org\\\\springframework\\\\ai\\\\spring-ai-redis-store\\\\1.1.3\\\\spring-ai-redis-store-1.1.3-sources.jar\" \"org/springframework/ai/vectorstore/redis/RedisVectorStore.java\" -d .)",
+      "Bash(./mvnw.cmd -q -o compile)"
     ]
   }
 }
