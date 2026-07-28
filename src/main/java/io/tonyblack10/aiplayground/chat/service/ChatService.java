@@ -10,6 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.stereotype.Service;
@@ -49,9 +50,7 @@ public class ChatService {
         .build();
 
     List<Advisor> advisors = new ArrayList<>();
-    advisors.add(MessageChatMemoryAdvisor.builder(chatMemory)
-        .conversationId(conversationId)
-        .build());
+    advisors.add(MessageChatMemoryAdvisor.builder(chatMemory).build());
 
     if (useRag && storeId != null && !storeId.isBlank()) {
       advisors.add(QuestionAnswerAdvisor.builder(vectorStoreRegistry.getStore(storeId)).build());
@@ -67,6 +66,7 @@ public class ChatService {
         .system(SYSTEM_PROMPT)
         .user(message)
         .advisors(advisors)
+        .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
         .options(OpenAiChatOptions.builder()
             .model(model)
             .temperature(temperature)
