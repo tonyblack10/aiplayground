@@ -1,7 +1,5 @@
 package io.tonyblack10.aiplayground.chat.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -13,7 +11,10 @@ import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Component;
-import redis.clients.jedis.JedisPooled;
+import redis.clients.jedis.RedisClient;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 @Component
 public class RedisChatMemory implements ChatMemoryRepository {
@@ -22,12 +23,12 @@ public class RedisChatMemory implements ChatMemoryRepository {
   private static final String KEY_PREFIX = "chat:memory:";
   private static final long TTL_SECONDS = 3600;
 
-  private final JedisPooled jedis;
+  private final RedisClient jedis;
   private final ObjectMapper objectMapper;
 
-  public RedisChatMemory(JedisPooled jedisPooled, ObjectMapper objectMapper) {
-    this.jedis = jedisPooled;
-    this.objectMapper = objectMapper;
+  public RedisChatMemory(RedisClient redisClient) {
+    this.jedis = redisClient;
+    this.objectMapper = JsonMapper.builder().build();
   }
 
   @Override
@@ -49,7 +50,7 @@ public class RedisChatMemory implements ChatMemoryRepository {
       try {
         MessageDto dto = objectMapper.readValue(json, MessageDto.class);
         messages.add(toMessage(dto));
-      } catch (JsonProcessingException e) {
+      } catch (JacksonException e) {
         log.error("Failed to deserialize message from conversation {}", conversationId, e);
       }
     }
@@ -71,7 +72,7 @@ public class RedisChatMemory implements ChatMemoryRepository {
       }
       jedis.rpush(key, jsons);
       jedis.expire(key, TTL_SECONDS);
-    } catch (JsonProcessingException e) {
+    } catch (JacksonException e) {
       log.error("Failed to serialize messages for conversation {}", conversationId, e);
     }
   }

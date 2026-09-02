@@ -69,8 +69,7 @@ public class ChatService {
         .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
         .options(OpenAiChatOptions.builder()
             .model(model)
-            .temperature(temperature)
-            .build())
+            .temperature(temperature))
         .toolContext(toolContextMap)
         .stream()
         .content();

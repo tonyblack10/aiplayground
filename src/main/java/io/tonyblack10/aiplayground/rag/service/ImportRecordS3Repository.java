@@ -1,7 +1,5 @@
 package io.tonyblack10.aiplayground.rag.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.tonyblack10.aiplayground.rag.model.DocumentImportRecord;
 import java.net.URI;
 import java.util.ArrayList;
@@ -22,6 +20,8 @@ import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 @Repository
 public class ImportRecordS3Repository {
@@ -43,7 +43,9 @@ public class ImportRecordS3Repository {
 
     this.recordsBucket = recordsBucket;
     this.recordsPrefix = recordsPrefix.endsWith("/") ? recordsPrefix : recordsPrefix + "/";
-    this.objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+    // Jackson 3's jackson-databind bundles java.time (de)serialization support directly
+    // (tools.jackson.databind.ext.javatime), so no separate JSR-310 module registration is needed.
+    this.objectMapper = JsonMapper.builder().build();
 
     S3ClientBuilder builder = S3Client.builder().region(Region.of(region));
 

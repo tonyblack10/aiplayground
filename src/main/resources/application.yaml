@@ -20,7 +20,10 @@ spring:
   autoconfigure:
     exclude:
       - org.springframework.ai.vectorstore.pgvector.autoconfigure.PgVectorStoreAutoConfiguration
-      - org.springframework.ai.mcp.server.common.autoconfigure.McpServerStatelessAutoConfiguration
+      # McpServerStatelessAutoConfiguration is no longer excluded: the Spring AI 1.1.5 bug that
+      # required replacing it (missing .jsonMapper(...) call) is fixed upstream as of Spring AI 2.0
+      # via McpServerJsonMapperAutoConfiguration. Only the WebFlux transport bean is still
+      # overridden (in McpServerConfig), to capture HTTP headers for vector-store selection.
       - org.springframework.ai.mcp.server.common.autoconfigure.StatelessToolCallbackConverterAutoConfiguration
   webflux:
     multipart:
@@ -36,6 +39,12 @@ app:
   frontend:
     base-url: ${APP_FRONTEND_BASE_URL:}
   rag:
+    agentic:
+      # Tuning for AgenticRagSearchService's multi-query fan-out/fan-in retrieval,
+      # used by the searchRagDocuments MCP tool for complex/multi-part queries.
+      enabled: true
+      number-of-queries: 3
+      complexity-word-threshold: 6
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}

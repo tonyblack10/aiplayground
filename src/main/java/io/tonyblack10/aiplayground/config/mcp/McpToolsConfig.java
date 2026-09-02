@@ -11,20 +11,23 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.mcp.McpToolUtils;
-import org.springframework.ai.model.ModelOptionsUtils;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import tools.jackson.databind.json.JsonMapper;
 
 @Configuration
 public class McpToolsConfig {
 
     @Bean
-    public List<AsyncToolSpecification> ragSearchToolSpecifications(RagSearchMcpTools ragSearchMcpTools) {
+    public List<AsyncToolSpecification> ragSearchToolSpecifications(
+            RagSearchMcpTools ragSearchMcpTools,
+            @Qualifier("mcpServerJsonMapper") JsonMapper mcpServerJsonMapper) {
         return Arrays.stream(
                 MethodToolCallbackProvider.builder()
                     .toolObjects(ragSearchMcpTools)
@@ -35,7 +38,7 @@ public class McpToolsConfig {
                 var tool = McpSchema.Tool.builder()
                     .name(toolCallback.getToolDefinition().name())
                     .description(toolCallback.getToolDefinition().description())
-                    .inputSchema(ModelOptionsUtils.jsonToObject(
+                    .inputSchema(mcpServerJsonMapper.readValue(
                         toolCallback.getToolDefinition().inputSchema(),
                         McpSchema.JsonSchema.class))
                     .build();
@@ -43,9 +46,9 @@ public class McpToolsConfig {
                 return new AsyncToolSpecification(tool,
                     (transportCtx, request) -> ReactiveSecurityContextHolder.getContext()
                         .mapNotNull(ctx -> UserToolContext.from(ctx.getAuthentication()))
-                        .flatMap(userCtx -> invoke(toolCallback, transportCtx, request, userCtx))
+                        .flatMap(userCtx -> invoke(toolCallback, transportCtx, request, userCtx, mcpServerJsonMapper))
                         .switchIfEmpty(Mono.defer(
-                            () -> invoke(toolCallback, transportCtx, request, null))));
+                            () -> invoke(toolCallback, transportCtx, request, null, mcpServerJsonMapper))));
             })
             .toList();
     }
@@ -54,7 +57,8 @@ public class McpToolsConfig {
             ToolCallback toolCallback,
             McpTransportContext transportCtx,
             McpSchema.CallToolRequest request,
-            UserToolContext userCtx) {
+            UserToolContext userCtx,
+            JsonMapper mcpServerJsonMapper) {
 
         return Mono.fromCallable(() -> {
             Map<String, Object> ctxMap = new HashMap<>();
@@ -64,11 +68,11 @@ public class McpToolsConfig {
             }
             try {
                 String result = toolCallback.call(
-                    ModelOptionsUtils.toJsonString(request.arguments()),
+                    mcpServerJsonMapper.writeValueAsString(request.arguments()),
                     new ToolContext(ctxMap));
-                return new McpSchema.CallToolResult(result, false);
+                return McpSchema.CallToolResult.builder().addTextContent(result).isError(false).build();
             } catch (Exception e) {
-                return new McpSchema.CallToolResult(e.getMessage(), true);
+                return McpSchema.CallToolResult.builder().addTextContent(e.getMessage()).isError(true).build();
             }
         }).subscribeOn(Schedulers.boundedElastic());
     }

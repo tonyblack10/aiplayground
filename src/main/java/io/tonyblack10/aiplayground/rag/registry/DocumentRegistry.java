@@ -24,7 +24,8 @@ public class DocumentRegistry {
       String preview = doc.getText() != null
           ? doc.getText().substring(0, Math.min(200, doc.getText().length()))
           : "";
-      DocumentEntry entry = new DocumentEntry(doc.getId(), source, preview, storeId, LocalDateTime.now());
+      DocumentEntry entry =
+          new DocumentEntry(doc.getId(), source, preview, storeId, LocalDateTime.now(), doc.getMetadata());
       storeEntries.put(doc.getId(), entry);
     }
   }

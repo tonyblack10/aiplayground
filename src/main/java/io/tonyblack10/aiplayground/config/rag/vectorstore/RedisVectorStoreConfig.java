@@ -16,15 +16,16 @@ import org.springframework.util.StringUtils;
 import redis.clients.jedis.DefaultJedisClientConfig;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.JedisClientConfig;
-import redis.clients.jedis.JedisPooled;
+import redis.clients.jedis.RedisClient;
 
 /**
  * Dynamically registers Redis-backed vector stores from {@code app.rag.redis} config.
  *
- * <p>All configured stores share a single Redis connection ({@link JedisPooled}); each
- * entry under {@code app.rag.redis.stores} becomes its own {@link RedisVectorStore},
- * keyed by its unique {@code name} in the {@code redisVectorStores} map bean so it can
- * be picked up by {@link io.tonyblack10.aiplayground.rag.service.VectorStoreRegistry}.
+ * <p>All configured stores share a single Redis connection ({@link RedisClient}, Jedis 7's
+ * unified client — replaces the pre-Jedis-7 {@code JedisPooled}); each entry under
+ * {@code app.rag.redis.stores} becomes its own {@link RedisVectorStore}, keyed by its unique
+ * {@code name} in the {@code redisVectorStores} map bean so it can be picked up by
+ * {@link io.tonyblack10.aiplayground.rag.service.VectorStoreRegistry}.
  */
 @Configuration
 @EnableConfigurationProperties(RedisVectorStoreProperties.class)
@@ -33,7 +34,7 @@ public class RedisVectorStoreConfig {
   private static final Logger log = LoggerFactory.getLogger(RedisVectorStoreConfig.class);
 
   @Bean
-  public JedisPooled jedisPooled(RedisVectorStoreProperties properties) {
+  public RedisClient redisClient(RedisVectorStoreProperties properties) {
     HostAndPort hostAndPort = new HostAndPort(properties.getHost(), properties.getPort());
     DefaultJedisClientConfig.Builder configBuilder = DefaultJedisClientConfig.builder()
         .ssl(properties.isSsl());
@@ -44,12 +45,15 @@ public class RedisVectorStoreConfig {
       configBuilder.password(properties.getPassword());
     }
     JedisClientConfig clientConfig = configBuilder.build();
-    return new JedisPooled(hostAndPort, clientConfig);
+    return RedisClient.builder()
+        .hostAndPort(hostAndPort)
+        .clientConfig(clientConfig)
+        .build();
   }
 
   @Bean("redisVectorStores")
   public Map<String, VectorStore> redisVectorStores(
-      JedisPooled jedisPooled, EmbeddingModel embeddingModel, RedisVectorStoreProperties properties) {
+      RedisClient redisClient, EmbeddingModel embeddingModel, RedisVectorStoreProperties properties) {
     Map<String, VectorStore> stores = new LinkedHashMap<>();
     for (RedisVectorStoreProperties.StoreConfig storeConfig : properties.getStores()) {
       Assert.hasText(storeConfig.getName(), "Each entry under app.rag.redis.stores must have a unique 'name'");
@@ -57,14 +61,14 @@ public class RedisVectorStoreConfig {
           "Duplicate Redis vector store name: " + storeConfig.getName());
       log.info("Registering Redis vector store '{}' (index='{}', prefix='{}')",
           storeConfig.getName(), storeConfig.getIndexName(), storeConfig.getPrefix());
-      stores.put(storeConfig.getName(), buildStore(jedisPooled, embeddingModel, storeConfig));
+      stores.put(storeConfig.getName(), buildStore(redisClient, embeddingModel, storeConfig));
     }
     return stores;
   }
 
   private VectorStore buildStore(
-      JedisPooled jedisPooled, EmbeddingModel embeddingModel, RedisVectorStoreProperties.StoreConfig cfg) {
-    RedisVectorStore.Builder builder = RedisVectorStore.builder(jedisPooled, embeddingModel)
+      RedisClient redisClient, EmbeddingModel embeddingModel, RedisVectorStoreProperties.StoreConfig cfg) {
+    RedisVectorStore.Builder builder = RedisVectorStore.builder(redisClient, embeddingModel)
         .indexName(cfg.getIndexName())
         .prefix(cfg.getPrefix())
         .contentFieldName(cfg.getContentFieldName())
